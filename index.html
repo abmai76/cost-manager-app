@@ -1,0 +1,3181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <meta name="theme-color" content="#1a365d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>🏗️ Building Cost Manager Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --primary: #1a365d;
+            --primary-light: #2b6cb0;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --warning: #d69e2e;
+            --info: #3182ce;
+            --gray-50: #f7fafc;
+            --gray-100: #edf2f7;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e0;
+            --gray-400: #a0aec0;
+            --gray-500: #718096;
+            --gray-600: #4a5568;
+            --gray-700: #2d3748;
+            --gray-800: #1a202c;
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.12);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        .app-container { width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; background: white; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .setup-screen {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: white; z-index: 100; padding: 40px 24px;
+            display: flex; flex-direction: column; justify-content: center; overflow-y: auto;
+            animation: slideUp 0.5s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .setup-screen .logo { font-size: 48px; text-align: center; margin-bottom: 8px; }
+        .setup-screen h2 { font-size: 24px; font-weight: 700; color: var(--primary); text-align: center; margin-bottom: 4px; }
+        .setup-screen .subtitle { color: var(--gray-500); text-align: center; font-size: 14px; margin-bottom: 28px; }
+        .setup-screen .form-group { margin-bottom: 16px; }
+        .setup-screen .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-600); margin-bottom: 6px; }
+        .setup-screen .form-group input, .setup-screen .form-group textarea, .setup-screen .form-group select {
+            width: 100%; padding: 12px 16px; border: 2px solid var(--gray-200); border-radius: var(--radius);
+            font-size: 15px; transition: var(--transition); background: var(--gray-50); font-family: inherit;
+        }
+        .setup-screen .form-group input:focus, .setup-screen .form-group textarea:focus, .setup-screen .form-group select:focus {
+            outline: none; border-color: var(--primary-light); background: white; box-shadow: 0 0 0 4px rgba(43,108,176,0.1);
+        }
+        .setup-screen .form-group textarea { resize: vertical; min-height: 60px; }
+        .setup-screen .btn-start {
+            width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white; border: none; border-radius: var(--radius); font-size: 17px; font-weight: 700;
+            cursor: pointer; transition: var(--transition); margin-top: 8px;
+        }
+        .setup-screen .btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(26,54,93,0.3); }
+        .setup-screen .btn-reset {
+            width: 100%; padding: 10px; background: var(--danger); color: white; border: none;
+            border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: var(--transition); margin-top: 8px;
+        }
+        .setup-screen .btn-reset:hover { opacity: 0.8; }
+        .main-app { display: none; flex-direction: column; height: 100%; width: 100%; animation: slideUp 0.4s ease; overflow: hidden; }
+        .app-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white; padding: 8px 12px 6px; flex-shrink: 0;
+        }
+        .app-header .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; }
+        .app-header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+        .app-header .header-actions { display: flex; gap: 3px; flex-wrap: wrap; }
+        .app-header .header-actions button, .app-header .header-actions select {
+            background: rgba(255,255,255,0.15); border: none; color: white; padding: 2px 7px;
+            border-radius: 4px; font-size: 9px; cursor: pointer; transition: var(--transition);
+            white-space: nowrap; font-family: inherit;
+        }
+        .app-header .header-actions button:hover { background: rgba(255,255,255,0.25); }
+        .app-header .header-actions select option { color: var(--gray-800); background: white; }
+        .app-header .project-info { margin-top: 2px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2px; }
+        .app-header .project-name { font-size: 12px; font-weight: 600; }
+        .app-header .project-address { font-size: 9px; opacity: 0.8; }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+            padding: 6px 8px; background: white; margin: -6px 8px 0;
+            border-radius: var(--radius); box-shadow: var(--shadow); position: relative; z-index: 2; flex-shrink: 0;
+        }
+        .stat-card { text-align: center; padding: 2px 0; }
+        .stat-card .number { font-size: 13px; font-weight: 700; color: var(--primary-light); word-break: break-all; }
+        .stat-card .number.positive { color: var(--success); }
+        .stat-card .number.negative { color: var(--danger); }
+        .stat-card .label { font-size: 7px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; font-weight: 600; }
+        .nav-tabs {
+            display: flex; background: white; border-bottom: 2px solid var(--gray-100);
+            padding: 0 4px; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+        .nav-tabs::-webkit-scrollbar { display: none; }
+        .nav-tab {
+            padding: 6px 8px; font-size: 10px; font-weight: 600; color: var(--gray-500);
+            cursor: pointer; border-bottom: 3px solid transparent; transition: var(--transition);
+            white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit;
+        }
+        .nav-tab.active { color: var(--primary-light); border-bottom-color: var(--primary-light); }
+        .nav-tab .badge-tab { background: var(--gray-200); color: var(--gray-600); font-size: 7px; padding: 1px 4px; border-radius: 6px; margin-left: 2px; }
+        .nav-tab.active .badge-tab { background: var(--primary-light); color: white; }
+        .content-area { flex: 1; overflow: auto; padding: 6px 8px 60px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        .content-area::-webkit-scrollbar { width: 3px; height: 3px; }
+        .content-area::-webkit-scrollbar-track { background: var(--gray-100); }
+        .content-area::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 2px; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; min-width: 100%; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .section-card {
+            background: white; border-radius: var(--radius); padding: 10px;
+            margin-bottom: 6px; box-shadow: var(--shadow); border: 1px solid var(--gray-100);
+            overflow-x: auto; min-width: 0;
+        }
+        .section-card .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px; flex-wrap: wrap; gap: 3px;
+        }
+        .section-card .card-header .title { font-size: 12px; font-weight: 700; color: var(--gray-700); }
+        .section-card .card-header .total { font-size: 13px; font-weight: 700; color: var(--primary-light); }
+        .section-card .card-actions { display: flex; gap: 3px; flex-wrap: wrap; }
+        .table-header {
+            display: grid; gap: 3px; font-weight: 700; font-size: 9px;
+            color: var(--gray-500); padding: 4px 3px; border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 4px;
+        }
+        .list-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .list-container::-webkit-scrollbar { height: 3px; }
+        .list-container::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 2px; }
+        .list-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 2px; border-bottom: 1px solid var(--gray-100);
+            font-size: 11px; min-width: 400px; gap: 3px;
+        }
+        .list-item:last-child { border-bottom: none; }
+        .list-item .item-check { flex: 0 0 20px; }
+        .list-item .item-check input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; }
+        .list-item .item-name { flex: 0 0 60px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .list-item .item-meta { color: var(--gray-500); font-size: 9px; flex: 0 0 45px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .list-item .item-cost { font-weight: 600; color: var(--gray-700); flex: 0 0 50px; text-align: right; }
+        .list-item .item-date { font-size: 9px; color: var(--gray-400); flex: 0 0 60px; }
+        .list-item .item-actions { display: flex; gap: 2px; flex: 0 0 auto; }
+        .list-item .item-actions button { padding: 1px 4px; font-size: 8px; border: none; border-radius: 3px; cursor: pointer; transition: var(--transition); }
+        .list-item .file-indicator { font-size: 12px; cursor: pointer; }
+        .list-item .note-indicator { font-size: 10px; color: var(--gray-400); cursor: help; }
+        .grid-materials { grid-template-columns: 20px 60px 50px 50px 60px 50px 50px auto; }
+        .grid-labor { grid-template-columns: 20px 60px 50px 50px 60px 50px 50px auto; }
+        .grid-payments { grid-template-columns: 20px 60px 60px 50px 50px auto; }
+        .grid-quality { grid-template-columns: 20px 60px 60px 50px 50px 80px auto; }
+        .add-form {
+            background: var(--gray-50); padding: 8px; border-radius: var(--radius);
+            margin-top: 4px; border: 2px dashed var(--gray-200); display: none; overflow-x: auto;
+        }
+        .add-form.show { display: block; animation: slideUp 0.3s ease; }
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+        .form-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; }
+        .form-group { margin-bottom: 4px; }
+        .form-group label { display: block; font-size: 9px; font-weight: 600; color: var(--gray-600); margin-bottom: 2px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 4px 6px; border: 2px solid var(--gray-200);
+            border-radius: 4px; font-size: 11px; transition: var(--transition);
+            background: white; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(43,108,176,0.1);
+        }
+        .form-group input[type="file"] { padding: 2px; border: none; }
+        .btn {
+            padding: 3px 10px; border: none; border-radius: 4px; font-size: 10px;
+            font-weight: 600; cursor: pointer; transition: var(--transition);
+            display: inline-flex; align-items: center; gap: 2px; font-family: inherit;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: var(--primary-light); color: white; }
+        .btn-primary:hover { background: var(--primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #2f855a; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #c53030; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--primary-light); color: var(--primary-light); }
+        .btn-outline:hover { background: var(--primary-light); color: white; }
+        .btn-sm { padding: 1px 6px; font-size: 8px; }
+        .btn-block { width: 100%; justify-content: center; }
+        .chart-container { position: relative; height: 150px; width: 100%; margin: 4px 0; }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        @media (max-width: 600px) {
+            .chart-row { grid-template-columns: 1fr; }
+            .form-grid-4 { grid-template-columns: 1fr 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 2px; padding: 4px; }
+            .list-item { min-width: 300px; font-size: 10px; }
+            .list-item .item-name { flex: 0 0 45px; }
+            .list-item .item-meta { flex: 0 0 35px; }
+            .grid-materials { grid-template-columns: 20px 45px 40px 40px 50px 40px 40px auto; }
+            .grid-labor { grid-template-columns: 20px 45px 40px 40px 50px 40px 40px auto; }
+            .grid-payments { grid-template-columns: 20px 45px 50px 40px 40px auto; }
+            .grid-quality { grid-template-columns: 20px 45px 50px 40px 40px 60px auto; }
+        }
+        .bottom-nav {
+            display: flex; background: white; border-top: 1px solid var(--gray-200);
+            padding: 2px 0 env(safe-area-inset-bottom); flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;
+        }
+        .bottom-nav-item {
+            flex: 1; text-align: center; padding: 2px 0; font-size: 7px;
+            color: var(--gray-500); cursor: pointer; transition: var(--transition);
+            border: none; background: none; font-family: inherit;
+        }
+        .bottom-nav-item .icon { font-size: 16px; display: block; margin-bottom: 1px; }
+        .bottom-nav-item.active { color: var(--primary-light); }
+        .toast {
+            position: fixed; bottom: 55px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: var(--gray-800); color: white; padding: 6px 14px; border-radius: var(--radius);
+            font-size: 11px; font-weight: 500; box-shadow: var(--shadow-lg);
+            opacity: 0; transition: all 0.4s ease; z-index: 200; max-width: 90%; text-align: center; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.info { background: var(--info); }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 300; display: none;
+            justify-content: center; align-items: center; padding: 16px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-content {
+            background: white; border-radius: var(--radius); padding: 14px;
+            max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; animation: slideUp 0.3s ease;
+        }
+        .modal-content h3 { margin-bottom: 8px; color: var(--primary); font-size: 14px; }
+        .modal-content .close-btn { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-500); }
+        .quality-image { max-width: 100%; max-height: 100px; border-radius: 4px; cursor: pointer; }
+        .quality-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; cursor: pointer; }
+        .status-badge { padding: 1px 6px; border-radius: 8px; font-size: 8px; font-weight: 600; }
+        .status-pass { background: #c6f6d5; color: #276749; }
+        .status-fail { background: #fed7d7; color: #9b2c2c; }
+        .status-pending { background: #fefcbf; color: #975a16; }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --gray-50: #1a202c; --gray-100: #2d3748; --gray-200: #4a5568;
+                --gray-300: #718096; --gray-400: #a0aec0; --gray-500: #cbd5e0;
+                --gray-600: #e2e8f0; --gray-700: #edf2f7; --gray-800: #f7fafc;
+            }
+            body { background: #0d1117; }
+            .app-container, .setup-screen, .section-card, .bottom-nav, .nav-tabs, .modal-content { background: #161b22; }
+            .setup-screen .form-group input, .setup-screen .form-group textarea,
+            .form-group input, .form-group select, .form-group textarea {
+                background: #0d1117; border-color: #30363d; color: #f0f6fc;
+            }
+            .add-form { background: #0d1117; border-color: #30363d; }
+            .stats-grid { background: #161b22; }
+            .list-item { border-bottom-color: #30363d; }
+            .nav-tabs { border-bottom-color: #30363d; }
+            .app-header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); }
+            .stat-card .number { color: #58a6ff; }
+        }
+        .quick-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px;
+        }
+        .quick-grid .item {
+            background: var(--gray-50); padding: 4px 6px; border-radius: 4px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .quick-grid .item .label { color: var(--gray-500); }
+        .quick-grid .item .value { font-weight: 700; }
+        .quick-grid .item .value.green { color: var(--success); }
+        .quick-grid .item .value.red { color: var(--danger); }
+        .quick-grid .item .value.blue { color: var(--primary-light); }
+        .csv-upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: var(--radius);
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 6px;
+        }
+        .csv-upload-area:hover {
+            border-color: var(--primary-light);
+            background: var(--gray-50);
+        }
+        .csv-upload-area input[type="file"] {
+            display: none;
+        }
+        .csv-upload-area .upload-icon {
+            font-size: 28px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .csv-upload-area .upload-text {
+            font-size: 11px;
+            color: var(--gray-500);
+        }
+        .btn-download-csv {
+            background: var(--success);
+            color: white;
+            padding: 2px 8px;
+            border: none;
+            border-radius: 3px;
+            font-size: 8px;
+            cursor: pointer;
+        }
+        .btn-download-csv:hover { opacity: 0.8; }
+        .edit-status-select { padding: 1px 4px; font-size: 8px; border-radius: 3px; border: 1px solid var(--gray-300); }
+        .btn-download-img {
+            background: var(--info);
+            color: white;
+            padding: 1px 6px;
+            border: none;
+            border-radius: 3px;
+            font-size: 8px;
+            cursor: pointer;
+        }
+        .btn-download-img:hover { opacity: 0.8; }
+        #loadingText { display: none; }
+
+        /* Currency Conversion Modal */
+        .currency-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 500; display: none;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .currency-modal.show { display: flex; }
+        .currency-modal-content {
+            background: white; border-radius: var(--radius); padding: 20px;
+            max-width: 420px; width: 100%; animation: slideUp 0.3s ease;
+        }
+        .currency-modal-content h3 { color: var(--primary); font-size: 16px; margin-bottom: 12px; }
+        .currency-modal-content .form-group { margin-bottom: 10px; }
+        .currency-modal-content .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--gray-600); margin-bottom: 3px; }
+        .currency-modal-content .form-group input, .currency-modal-content .form-group select {
+            width: 100%; padding: 8px 10px; border: 2px solid var(--gray-200); border-radius: 6px;
+            font-size: 14px; font-family: inherit;
+        }
+        .currency-modal-content .form-group input:focus, .currency-modal-content .form-group select:focus {
+            outline: none; border-color: var(--primary-light);
+        }
+        .currency-modal-content .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+        .currency-modal-content .btn-row button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-currency-confirm { background: var(--success); color: white; }
+        .btn-currency-cancel { background: var(--gray-200); color: var(--gray-700); }
+        .currency-modal-content .info-text { font-size: 11px; color: var(--gray-500); margin-top: 6px; }
+
+        /* Print Preview Styles - FIXED */
+        .print-preview-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 600; display: none;
+            justify-content: center; align-items: center; padding: 16px;
+        }
+        .print-preview-overlay.show { display: flex; }
+        .print-preview-content {
+            background: #f0f0f0; border-radius: var(--radius); padding: 16px;
+            max-width: 1000px; width: 100%; max-height: 90vh; display: flex;
+            flex-direction: column; overflow: hidden;
+        }
+        .print-preview-content .preview-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; flex-shrink: 0;
+            background: white; padding: 8px 12px; border-radius: 8px;
+        }
+        .print-preview-content .preview-header h3 { font-size: 16px; color: var(--primary); }
+        .print-preview-content .preview-header .preview-actions { display: flex; gap: 6px; }
+        .print-preview-content .preview-body {
+            flex: 1; overflow: auto; background: #e8e8e8;
+            border-radius: var(--radius); padding: 20px;
+        }
+        .print-preview-content .preview-body .print-page {
+            background: white; padding: 30px 40px; margin: 0 auto 20px;
+            max-width: 800px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-family: Arial, sans-serif; color: #1a202c;
+            page-break-after: always;
+        }
+        .preview-close-btn { background: var(--danger); color: white; border: none; padding: 4px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .preview-close-btn:hover { opacity: 0.8; }
+        .preview-print-btn { background: var(--primary); color: white; border: none; padding: 4px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .preview-print-btn:hover { opacity: 0.8; }
+        .btn-print-preview { background: var(--warning); color: white; border: none; padding: 2px 8px; border-radius: 4px; font-size: 9px; cursor: pointer; font-family: inherit; }
+        .btn-print-preview:hover { opacity: 0.8; }
+
+        /* Print Styles - FIXED */
+        @media print {
+            body * { visibility: hidden; }
+            .print-page, .print-page * { visibility: visible; }
+            .print-page { 
+                position: absolute; left: 0; top: 0; width: 100%; 
+                padding: 20px 30px; background: white; 
+                font-family: Arial, sans-serif; color: #1a202c;
+            }
+            .print-page .page-break { page-break-after: always; border: none; margin: 0; padding: 0; }
+            .print-page table { page-break-inside: auto; }
+            .print-page tr { page-break-inside: avoid; page-break-after: auto; }
+            .print-page thead { display: table-header-group; }
+            .print-page tfoot { display: table-footer-group; }
+        }
+
+        /* Tab Help Text */
+        .tab-help-text {
+            font-size: 9px; color: var(--gray-500); background: var(--gray-50);
+            padding: 4px 8px; border-radius: 4px; margin-bottom: 6px;
+            border-left: 3px solid var(--primary-light);
+        }
+        .tab-help-text strong { color: var(--gray-700); }
+
+        /* Print Page Styles */
+        .print-page h1 { text-align: center; color: #1a365d; font-size: 28px; margin-bottom: 4px; }
+        .print-page h2 { text-align: center; font-size: 18px; color: #2d3748; margin-bottom: 2px; }
+        .print-page .sub-info { text-align: center; font-size: 12px; color: #718096; margin: 2px 0; }
+        .print-page .summary-box { background: #f7fafc; border: 2px solid #cbd5e0; border-radius: 8px; padding: 16px; margin: 12px 0; }
+        .print-page .summary-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #edf2f7; }
+        .print-page .summary-row:last-child { border-bottom: none; }
+        .print-page .summary-row .label { font-weight: 600; color: #4a5568; }
+        .print-page .summary-row .value { font-weight: 700; }
+        .print-page .summary-row .value.green { color: #38a169; }
+        .print-page .summary-row .value.red { color: #e53e3e; }
+        .print-page .section-title { color: #1a365d; font-size: 16px; margin: 12px 0 6px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; }
+        .print-page table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 6px 0 12px; }
+        .print-page table th { background: #edf2f7; padding: 4px 6px; border: 1px solid #e2e8f0; text-align: left; font-weight: 700; }
+        .print-page table td { padding: 3px 6px; border: 1px solid #e2e8f0; }
+        .print-page table tr:nth-child(even) { background: #f7fafc; }
+        .print-page .footer-text { text-align: center; font-size: 9px; color: #a0aec0; margin-top: 16px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
+        .print-page .quality-photo { max-width: 100px; max-height: 80px; border-radius: 4px; border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="app">
+        <div class="toast" id="toast"></div>
+        <div class="modal-overlay" id="modal">
+            <div class="modal-content" id="modalContent">
+                <button class="close-btn" onclick="closeModal()">✕</button>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+
+        <!-- Currency Conversion Modal -->
+        <div class="currency-modal" id="currencyModal">
+            <div class="currency-modal-content">
+                <h3>💱 Currency Conversion</h3>
+                <div class="form-group">
+                    <label>From Currency</label>
+                    <input type="text" id="fromCurrencyDisplay" readonly style="background:#f0f0f0;">
+                </div>
+                <div class="form-group">
+                    <label>To Currency</label>
+                    <select id="toCurrencySelect">
+                        <option value="$">USD ($)</option><option value="Rs">NPR (Rs)</option>
+                        <option value="₹">INR (₹)</option><option value="€">EUR (€)</option>
+                        <option value="£">GBP (£)</option><option value="BDT">BDT (৳)</option>
+                        <option value="CAD">CAD ($)</option><option value="AUD">AUD ($)</option>
+                        <option value="JPY">JPY (¥)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Conversion Rate (1 <span id="fromCurrencyLabel">USD</span> = ? <span id="toCurrencyLabel">NPR</span>)</label>
+                    <input type="number" id="conversionRate" step="0.0001" placeholder="Enter exchange rate">
+                </div>
+                <div class="info-text">💡 All amounts will be multiplied by this rate. Existing data will be converted.</div>
+                <div class="btn-row">
+                    <button class="btn-currency-cancel" onclick="closeCurrencyModal()">Cancel</button>
+                    <button class="btn-currency-confirm" onclick="confirmCurrencyConversion()">✅ Convert</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Print Preview Modal -->
+        <div class="print-preview-overlay" id="printPreview">
+            <div class="print-preview-content">
+                <div class="preview-header">
+                    <h3>🖨️ Print Preview</h3>
+                    <div class="preview-actions">
+                        <button class="preview-print-btn" onclick="printFromPreview()">🖨️ Print</button>
+                        <button class="preview-close-btn" onclick="closePrintPreview()">✕ Close</button>
+                    </div>
+                </div>
+                <div class="preview-body" id="printPreviewBody">
+                    <div style="text-align:center;padding:40px;color:var(--gray-500);">Generating preview...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Screen -->
+        <div class="setup-screen" id="setupScreen">
+            <div class="logo">🏗️</div>
+            <h2>Building Cost Manager Pro</h2>
+            <p class="subtitle">Complete cost tracking for multi-storied buildings</p>
+            <div class="form-group">
+                <label>🏷️ Project Name</label>
+                <input type="text" id="projectName" placeholder="e.g., Green Valley Tower">
+            </div>
+            <div class="form-group">
+                <label>📍 Project Address</label>
+                <input type="text" id="projectAddress" placeholder="Enter full address">
+            </div>
+            <div class="form-group">
+                <label>📝 Construction Description</label>
+                <textarea id="projectDesc" placeholder="e.g., 5-story residential with basement" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>💰 Default Currency</label>
+                <select id="defaultCurrency">
+                    <option value="$">USD ($)</option><option value="Rs">NPR (Rs)</option>
+                    <option value="₹">INR (₹)</option><option value="€">EUR (€)</option>
+                    <option value="£">GBP (£)</option><option value="BDT">BDT (৳)</option>
+                    <option value="CAD">CAD ($)</option><option value="AUD">AUD ($)</option>
+                    <option value="JPY">JPY (¥)</option>
+                </select>
+            </div>
+            <button class="btn-start" onclick="startProject()">🚀 Start Project</button>
+            <button class="btn-reset" onclick="resetAllData()">🗑️ Reset All Data</button>
+            <p style="text-align:center;margin-top:8px;font-size:10px;color:var(--gray-500);">All data stored locally · Import/Export available</p>
+        </div>
+
+        <!-- Main App -->
+        <div class="main-app" id="mainApp">
+            <div class="app-header">
+                <div class="header-top">
+                    <h1>🏗️ Building Cost Manager</h1>
+                    <div class="header-actions">
+                        <span id="loadingText" style="font-size:8px;opacity:0.5;">Loading...</span>
+                        <select id="globalCurrency" onchange="handleCurrencyChange()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:2px 5px;border-radius:3px;font-size:9px;font-weight:600;">
+                            <option value="$">USD</option><option value="Rs">NPR</option>
+                            <option value="₹">INR</option><option value="€">EUR</option>
+                            <option value="£">GBP</option><option value="BDT">BDT</option>
+                            <option value="CAD">CAD</option><option value="AUD">AUD</option>
+                            <option value="JPY">JPY</option>
+                        </select>
+                        <button onclick="toggleEditProject()">✏️ Edit</button>
+                        <button class="btn-print-preview" onclick="showPrintPreview()">🖨️ Print</button>
+                        <button onclick="exportPDF()">📄 PDF</button>
+                        <button onclick="exportJSON()">📤 JSON</button>
+                        <button onclick="exportCSV()">📊 CSV</button>
+                        <button onclick="resetAllData()" style="background:rgba(255,0,0,0.3);">🗑️ Reset</button>
+                    </div>
+                </div>
+                <div class="project-info">
+                    <span class="project-name" id="displayProjectName">Loading...</span>
+                    <span class="project-address" id="displayProjectAddress">Loading...</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card"><div class="number" id="totalCost">$0</div><div class="label">Total Cost</div></div>
+                <div class="stat-card"><div class="number positive" id="totalPaid">$0</div><div class="label">Paid</div></div>
+                <div class="stat-card"><div class="number negative" id="dueAmount">$0</div><div class="label">Due</div></div>
+                <div class="stat-card"><div class="number" id="itemCount">0</div><div class="label">Entries</div></div>
+            </div>
+
+            <div class="nav-tabs" id="navTabs">
+                <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+                <button class="nav-tab" data-tab="materials" onclick="switchTab('materials')">📦 Materials <span class="badge-tab" id="materialCount">0</span></button>
+                <button class="nav-tab" data-tab="labor" onclick="switchTab('labor')">👷 Labor <span class="badge-tab" id="laborCount">0</span></button>
+                <button class="nav-tab" data-tab="payments" onclick="switchTab('payments')">💰 Payments <span class="badge-tab" id="paymentCount">0</span></button>
+                <button class="nav-tab" data-tab="quality" onclick="switchTab('quality')">✅ Quality <span class="badge-tab" id="qualityCount">0</span></button>
+                <button class="nav-tab" data-tab="import" onclick="switchTab('import')">📥 Import</button>
+                <button class="nav-tab" data-tab="tabs" onclick="switchTab('tabs')">📑 Add Tabs</button>
+            </div>
+
+            <div class="content-area" id="contentArea">
+
+                <!-- Dashboard -->
+                <div class="tab-content active" id="tab-dashboard">
+                    <div class="tab-help-text"><strong>📊 Dashboard:</strong> View overall project costs, charts, and breakdown. Use filters to analyze data by date range.</div>
+                    <div class="section-card" id="projectEditCard" style="display:none;">
+                        <div class="card-header">
+                            <span class="title">✏️ Edit Project Details</span>
+                            <button class="btn btn-success btn-sm" onclick="saveProjectEdit()">💾 Save</button>
+                        </div>
+                        <div class="form-group"><label>Project Name</label><input type="text" id="editProjectName"></div>
+                        <div class="form-group"><label>Address</label><input type="text" id="editProjectAddress"></div>
+                        <div class="form-group"><label>Description</label><textarea id="editProjectDesc" rows="2"></textarea></div>
+                    </div>
+                    <div class="section-card">
+                        <div class="card-header">
+                            <span class="title">📊 Cost Analysis</span>
+                            <select id="chartFilter" onchange="updateCharts()" style="padding:2px 5px;border-radius:3px;border:1px solid var(--gray-200);font-size:9px;">
+                                <option value="all">All Time</option>
+                                <option value="month">This Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                        <div class="chart-row">
+                            <div class="chart-container"><canvas id="costPieChart"></canvas></div>
+                            <div class="chart-container"><canvas id="costBarChart"></canvas></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:4px;font-size:10px;">
+                            <div style="background:var(--gray-50);padding:4px;border-radius:4px;text-align:center;">
+                                <div style="font-weight:700;color:var(--primary-light);" id="materialPercent">0%</div>
+                                <div style="color:var(--gray-500);font-size:8px;">Materials</div>
+                            </div>
+                            <div style="background:var(--gray-50);padding:4px;border-radius:4px;text-align:center;">
+                                <div style="font-weight:700;color:var(--success);" id="laborPercent">0%</div>
+                                <div style="color:var(--gray-500);font-size:8px;">Labor</div>
+                            </div>
+                            <div style="background:var(--gray-50);padding:4px;border-radius:4px;text-align:center;">
+                                <div style="font-weight:700;color:var(--warning);" id="otherPercent">0%</div>
+                                <div style="color:var(--gray-500);font-size:8px;">Other</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-card">
+                        <div class="card-header"><span class="title">📋 Quick Overview</span></div>
+                        <div class="quick-grid">
+                            <div class="item"><span class="label">📦 Materials Total</span><span class="value blue" id="dashMatTotal">$0</span></div>
+                            <div class="item"><span class="label">👷 Labor Total</span><span class="value blue" id="dashLabTotal">$0</span></div>
+                            <div class="item"><span class="label">💰 Total Paid</span><span class="value green" id="dashPaidTotal">$0</span></div>
+                            <div class="item"><span class="label">📊 Due Amount</span><span class="value red" id="dashDueTotal">$0</span></div>
+                            <div class="item"><span class="label">📦 Materials Count</span><span class="value" id="dashMatCount">0</span></div>
+                            <div class="item"><span class="label">👷 Labor Count</span><span class="value" id="dashLabCount">0</span></div>
+                            <div class="item"><span class="label">💰 Payments Count</span><span class="value" id="dashPayCount">0</span></div>
+                            <div class="item"><span class="label">✅ Quality Checks</span><span class="value" id="dashQualCount">0</span></div>
+                        </div>
+                    </div>
+                    <div class="section-card">
+                        <div class="card-header">
+                            <span class="title">📋 Cost Breakdown</span>
+                            <div style="display:flex;gap:2px;flex-wrap:wrap;">
+                                <select id="sortType" onchange="updateDashboard()" style="padding:1px 4px;border-radius:3px;border:1px solid var(--gray-200);font-size:8px;">
+                                    <option value="date">Sort by Date</option>
+                                    <option value="type">Sort by Type</option>
+                                    <option value="cost">Sort by Cost</option>
+                                    <option value="name">Sort by Name</option>
+                                </select>
+                                <input type="date" id="sortStartDate" onchange="updateDashboard()" style="padding:1px 4px;border-radius:3px;border:1px solid var(--gray-200);font-size:8px;width:80px;">
+                                <span style="font-size:8px;display:flex;align-items:center;">to</span>
+                                <input type="date" id="sortEndDate" onchange="updateDashboard()" style="padding:1px 4px;border-radius:3px;border:1px solid var(--gray-200);font-size:8px;width:80px;">
+                            </div>
+                        </div>
+                        <div id="breakdownList"><div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">Loading data...</div></div>
+                    </div>
+                </div>
+
+                <!-- Materials -->
+                <div class="tab-content" id="tab-materials">
+                    <div class="tab-help-text"><strong>📦 Materials:</strong> Add, edit, or delete material costs. Upload files (images/PDFs) as attachments. Import via CSV.</div>
+                    <div class="section-card">
+                        <div class="card-header">
+                            <span class="title">📦 Materials</span>
+                            <div class="card-actions">
+                                <button class="btn btn-primary btn-sm" onclick="toggleForm('materialForm')">+ Add</button>
+                                <button class="btn btn-outline btn-sm" onclick="document.getElementById('csvMaterialInput').click()">📥 CSV</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSelected('material')">🗑️ Delete Selected</button>
+                                <button class="btn-download-csv" onclick="downloadCSVTemplate('material')">📄 Sample CSV</button>
+                                <input type="file" id="csvMaterialInput" accept=".csv" style="display:none" onchange="importCSVFile(event,'material')">
+                            </div>
+                        </div>
+                        <div class="add-form" id="materialForm">
+                            <div class="form-grid-3">
+                                <div class="form-group"><label>Material Name *</label><input type="text" id="matName" placeholder="e.g., Bricks" list="materialDatalist"><datalist id="materialDatalist"></datalist></div>
+                                <div class="form-group"><label>Quantity *</label><input type="number" id="matQty" placeholder="0"></div>
+                                <div class="form-group"><label>Unit *</label><input type="text" id="matUnit" placeholder="kg, bags, units"></div>
+                            </div>
+                            <div class="form-grid-3">
+                                <div class="form-group"><label>Date *</label><input type="date" id="matDate"></div>
+                                <div class="form-group"><label>Cost *</label><input type="number" id="matCost" placeholder="0.00"></div>
+                                <div class="form-group"><label>Category</label>
+                                    <select id="matCategory">
+                                        <option value="Civil">Civil</option>
+                                        <option value="Electrical">Electrical</option>
+                                        <option value="Mechanical">Mechanical</option>
+                                        <option value="Finishing">Finishing</option>
+                                        <option value="Plumbing">Plumbing</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group"><label>Note (Optional)</label><input type="text" id="matNote" placeholder="Optional note"></div>
+                            <div class="form-group"><label>File (Optional)</label><input type="file" id="matFile" accept="image/*,.pdf"></div>
+                            <div style="font-size:8px;color:var(--gray-400);margin-bottom:3px;">* Required fields</div>
+                            <button class="btn btn-success btn-block" onclick="addMaterial()">➕ Add Material</button>
+                        </div>
+                        <div class="table-header grid-materials">
+                            <span><input type="checkbox" id="materialSelectAll" onchange="toggleSelectAll('material')"></span>
+                            <span>Material Name</span><span>Qty</span><span>Unit</span><span>Date</span><span>Cost</span><span>Category</span><span>Actions</span>
+                        </div>
+                        <div class="list-container"><div id="materialListContainer"><div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No materials added yet.</div></div></div>
+                    </div>
+                </div>
+
+                <!-- Labor -->
+                <div class="tab-content" id="tab-labor">
+                    <div class="tab-help-text"><strong>👷 Labor:</strong> Track labor costs by contractor, worker count, and wage basis. Upload files as attachments.</div>
+                    <div class="section-card">
+                        <div class="card-header">
+                            <span class="title">👷 Labor</span>
+                            <div class="card-actions">
+                                <button class="btn btn-primary btn-sm" onclick="toggleForm('laborForm')">+ Add</button>
+                                <button class="btn btn-outline btn-sm" onclick="document.getElementById('csvLaborInput').click()">📥 CSV</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSelected('labor')">🗑️ Delete Selected</button>
+                                <button class="btn-download-csv" onclick="downloadCSVTemplate('labor')">📄 Sample CSV</button>
+                                <input type="file" id="csvLaborInput" accept=".csv" style="display:none" onchange="importCSVFile(event,'labor')">
+                            </div>
+                        </div>
+                        <div class="add-form" id="laborForm">
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Date *</label><input type="date" id="laborDate" name="laborDate"></div>
+                                <div class="form-group"><label># Workers *</label><input type="text" id="laborCount" name="laborCount" placeholder="e.g., 10"></div>
+                            </div>
+                            <div class="form-grid-3">
+                                <div class="form-group"><label>Contractor *</label><input type="text" id="contractorName" name="contractorName" placeholder="e.g., ABC Construction"></div>
+                                <div class="form-group"><label>Worker Category</label>
+                                    <select id="workerCategory" name="workerCategory">
+                                        <option value="General">General</option>
+                                        <option value="Plumber">Plumber</option>
+                                        <option value="Electrician">Electrician</option>
+                                        <option value="Mason">Mason</option>
+                                        <option value="Mechanic">Mechanic</option>
+                                        <option value="Sanitary">Sanitary</option>
+                                        <option value="Carpenter">Carpenter</option>
+                                        <option value="Painter">Painter</option>
+                                        <option value="Welder">Welder</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group"><label>Wage Basis</label>
+                                    <select id="wageBasis" name="wageBasis">
+                                        <option value="daily">Daily</option>
+                                        <option value="contract">Contract</option>
+                                        <option value="hourly">Hourly</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Pay Amount *</label><input type="text" id="laborPay" name="laborPay" placeholder="0.00"></div>
+                                <div class="form-group"><label>Note (Optional)</label><input type="text" id="laborNote" name="laborNote" placeholder="e.g., Week 1 payment"></div>
+                            </div>
+                            <div class="form-group"><label>File (Optional)</label><input type="file" id="laborFile" name="laborFile" accept="image/*,.pdf"></div>
+                            <div style="font-size:8px;color:var(--gray-400);margin-bottom:3px;">* Required fields</div>
+                            <button class="btn btn-success btn-block" id="laborSubmitBtn">➕ Add Labor</button>
+                        </div>
+                        <div class="table-header grid-labor">
+                            <span><input type="checkbox" id="laborSelectAll" onchange="toggleSelectAll('labor')"></span>
+                            <span>Contractor</span><span>Workers</span><span>Category</span><span>Date</span><span>Basis</span><span>Pay</span><span>Actions</span>
+                        </div>
+                        <div class="list-container"><div id="laborListContainer"><div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No labor records yet.</div></div></div>
+                    </div>
+                </div>
+
+                <!-- Payments -->
+                <div class="tab-content" id="tab-payments">
+                    <div class="tab-help-text"><strong>💰 Payments:</strong> Record payments made to contractors. Track total paid vs due amount.</div>
+                    <div class="section-card">
+                        <div class="card-header">
+                            <span class="title">💰 Payments</span>
+                            <div class="card-actions">
+                                <button class="btn btn-primary btn-sm" onclick="toggleForm('paymentForm')">+ Record</button>
+                                <button class="btn btn-outline btn-sm" onclick="document.getElementById('csvPaymentInput').click()">📥 CSV</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSelected('payment')">🗑️ Delete Selected</button>
+                                <button class="btn-download-csv" onclick="downloadCSVTemplate('payment')">📄 Sample CSV</button>
+                                <input type="file" id="csvPaymentInput" accept=".csv" style="display:none" onchange="importCSVFile(event,'payment')">
+                            </div>
+                        </div>
+                        <div class="add-form" id="paymentForm">
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Date *</label><input type="date" id="paymentDate"></div>
+                                <div class="form-group"><label>Amount *</label><input type="number" id="paymentAmount" placeholder="0.00"></div>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Contractor *</label><input type="text" id="paymentContractor" placeholder="Contractor name"></div>
+                                <div class="form-group"><label>Type</label>
+                                    <select id="paymentType">
+                                        <option value="Regular">Regular</option>
+                                        <option value="Advance">Advance</option>
+                                        <option value="Final">Final</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group"><label>Note (Optional)</label><input type="text" id="paymentNote" placeholder="Optional note"></div>
+                            <div class="form-group"><label>File (Optional)</label><input type="file" id="paymentFile" accept="image/*,.pdf"></div>
+                            <div style="font-size:8px;color:var(--gray-400);margin-bottom:3px;">* Required fields</div>
+                            <button class="btn btn-success btn-block" onclick="addPayment()">💰 Record Payment</button>
+                        </div>
+                        <div class="table-header grid-payments">
+                            <span><input type="checkbox" id="paymentSelectAll" onchange="toggleSelectAll('payment')"></span>
+                            <span>Contractor</span><span>Date</span><span>Type</span><span>Amount</span><span>Actions</span>
+                        </div>
+                        <div class="list-container"><div id="paymentListContainer"><div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No payments recorded yet.</div></div></div>
+                    </div>
+                </div>
+
+                <!-- Quality Checks -->
+                <div class="tab-content" id="tab-quality">
+                    <div class="tab-help-text"><strong>✅ Quality:</strong> Track quality inspections with pass/fail status. Upload photos as evidence.</div>
+                    <div class="section-card">
+                        <div class="card-header">
+                            <span class="title">✅ Quality Checks</span>
+                            <div class="card-actions">
+                                <button class="btn btn-primary btn-sm" onclick="toggleForm('qualityForm')">+ Add Check</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSelected('quality')">🗑️ Delete Selected</button>
+                            </div>
+                        </div>
+                        <div class="add-form" id="qualityForm">
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Item *</label><input type="text" id="qualityItem" placeholder="e.g., Concrete Strength"></div>
+                                <div class="form-group"><label>Date *</label><input type="date" id="qualityDate"></div>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group"><label>Status</label>
+                                    <select id="qualityStatus">
+                                        <option value="Pass">✅ Pass</option>
+                                        <option value="Fail">❌ Fail</option>
+                                        <option value="Pending">⏳ Pending</option>
+                                    </select>
+                                </div>
+                                <div class="form-group"><label>Inspector *</label><input type="text" id="qualityInspector" placeholder="Inspector name"></div>
+                            </div>
+                            <div class="form-group"><label>Notes (Optional)</label><input type="text" id="qualityNote" placeholder="Additional notes"></div>
+                            <div class="form-group"><label>Photo (Optional)</label><input type="file" id="qualityPhoto" accept="image/*" capture="environment"></div>
+                            <div style="font-size:8px;color:var(--gray-400);margin-bottom:3px;">* Required fields</div>
+                            <button class="btn btn-success btn-block" onclick="addQualityCheck()">📸 Add Quality Check</button>
+                        </div>
+                        <div class="table-header grid-quality">
+                            <span><input type="checkbox" id="qualitySelectAll" onchange="toggleSelectAll('quality')"></span>
+                            <span>Item</span><span>Date</span><span>Status</span><span>Inspector</span><span>Photo</span><span>Actions</span>
+                        </div>
+                        <div class="list-container"><div id="qualityListContainer"><div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No quality checks yet.</div></div></div>
+                    </div>
+                </div>
+
+                <!-- Import -->
+                <div class="tab-content" id="tab-import">
+                    <div class="tab-help-text"><strong>📥 Import:</strong> Import data from JSON or CSV files. CSV import supports Materials, Labor, Payments, and Quality.</div>
+                    <div class="section-card">
+                        <div class="card-header"><span class="title">📥 Import Data</span></div>
+                        <div style="margin-bottom:8px;">
+                            <h4 style="font-size:11px;margin-bottom:2px;">📄 Import JSON</h4>
+                            <input type="file" id="jsonImport" accept=".json" onchange="importJSON(event)" style="font-size:10px;">
+                        </div>
+                        <div>
+                            <h4 style="font-size:11px;margin-bottom:2px;">📊 Import CSV (Upload File)</h4>
+                            <p style="font-size:9px;color:var(--gray-500);margin-bottom:3px;">Upload a CSV file for the selected type</p>
+                            <select id="importType" style="padding:3px 6px;border-radius:3px;border:1px solid var(--gray-200);margin-bottom:3px;width:100%;font-size:10px;">
+                                <option value="material">Materials</option>
+                                <option value="labor">Labor</option>
+                                <option value="payment">Payments</option>
+                                <option value="quality">Quality Checks</option>
+                            </select>
+                            <div class="csv-upload-area" onclick="document.getElementById('csvImportFile').click()">
+                                <span class="upload-icon">📂</span>
+                                <span class="upload-text">Click to select CSV file or drag & drop</span>
+                                <input type="file" id="csvImportFile" accept=".csv" onchange="importCSVFile(event,document.getElementById('importType').value)">
+                            </div>
+                            <div id="csvPreviewContainer" style="margin-top:4px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Tabs -->
+                <div class="tab-content" id="tab-tabs">
+                    <div class="tab-help-text"><strong>📑 Add Tabs:</strong> Create custom tabs for additional cost categories (e.g., Equipment, Subcontractors).</div>
+                    <div class="section-card">
+                        <div class="card-header"><span class="title">📑 Add Custom Tabs</span></div>
+                        <p style="font-size:10px;color:var(--gray-500);margin-bottom:6px;">Create custom tabs with the same fields as Materials</p>
+                        
+                        <div class="tab-management" id="tabManagement"></div>
+                        
+                        <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
+                            <input type="text" id="newTabName" placeholder="New tab name" style="flex:1;padding:3px 6px;border:2px solid var(--gray-200);border-radius:3px;font-size:10px;min-width:80px;">
+                            <button class="btn btn-success btn-sm" onclick="addCustomTab()">➕ Add Tab</button>
+                        </div>
+                        <div style="margin-top:6px;font-size:9px;color:var(--gray-500);">
+                            <p>💡 Custom tabs appear in navigation with full CRUD operations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Navigation -->
+            <div class="bottom-nav">
+                <button class="bottom-nav-item active" onclick="switchTab('dashboard')"><span class="icon">📊</span>Dashboard</button>
+                <button class="bottom-nav-item" onclick="switchTab('materials')"><span class="icon">📦</span>Materials</button>
+                <button class="bottom-nav-item" onclick="switchTab('labor')"><span class="icon">👷</span>Labor</button>
+                <button class="bottom-nav-item" onclick="switchTab('payments')"><span class="icon">💰</span>Payments</button>
+                <button class="bottom-nav-item" onclick="switchTab('quality')"><span class="icon">✅</span>Quality</button>
+                <button class="bottom-nav-item" onclick="switchTab('import')"><span class="icon">📥</span>Import</button>
+                <button class="bottom-nav-item" onclick="switchTab('tabs')"><span class="icon">📑</span>Add Tabs</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // COMPLETE APP - FIXED PRINT PREVIEW AND PDF
+        // ============================================================
+
+        var state = {
+            project: { name: '', address: '', description: '', currency: '$', createdAt: null },
+            materials: [],
+            labor: [],
+            payments: [],
+            quality: [],
+            customTabs: [],
+            materialNames: ['Bricks', 'Cement', 'Steel Rods', 'Sand', 'Aggregate', 'Wood', 'Glass', 'Paint', 'Tiles', 'Plumbing', 'Electrical', 'Windows', 'Doors', 'Flooring', 'Roofing', 'Other'],
+            editingItem: null
+        };
+
+        var STORAGE_KEY = 'buildingCostManagerProV26';
+        var currentCurrency = '$';
+        var pieChartInstance = null;
+        var barChartInstance = null;
+        var pendingCurrencyChange = null;
+
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+        function getCurrency() { return currentCurrency || '$'; }
+        
+        function formatCurrency(amount) {
+            var symbol = getCurrency();
+            var num = Number(amount);
+            if (isNaN(num)) num = 0;
+            var formatted = num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            if (symbol === 'BDT') {
+                return 'BDT ' + formatted;
+            }
+            return symbol + formatted;
+        }
+
+        function normalizeDate(dateStr) {
+            if (!dateStr) return new Date().toISOString().split('T')[0];
+            var date = new Date(dateStr);
+            if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+            var parts = dateStr.split('/');
+            if (parts.length === 3) {
+                var month = parseInt(parts[0]), day = parseInt(parts[1]), year = parseInt(parts[2]);
+                if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+                    if (year < 100) year += 2000;
+                    var d = new Date(year, month - 1, day);
+                    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+                }
+            }
+            var parts2 = dateStr.split('/');
+            if (parts2.length === 3) {
+                var day2 = parseInt(parts2[0]), month2 = parseInt(parts2[1]), year2 = parseInt(parts2[2]);
+                if (!isNaN(day2) && !isNaN(month2) && !isNaN(year2)) {
+                    if (year2 < 100) year2 += 2000;
+                    var d2 = new Date(year2, month2 - 1, day2);
+                    if (!isNaN(d2.getTime())) return d2.toISOString().split('T')[0];
+                }
+            }
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function saveState() {
+            try { 
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); 
+            } catch (e) { 
+                console.error('Save error:', e);
+            }
+        }
+
+        function setDefaultDates() {
+            var today = new Date().toISOString().split('T')[0];
+            var ids = ['matDate', 'laborDate', 'paymentDate', 'qualityDate', 'sortStartDate', 'sortEndDate'];
+            for (var i = 0; i < ids.length; i++) {
+                var el = document.getElementById(ids[i]);
+                if (el && !el.value) el.value = today;
+            }
+        }
+
+        function toggleForm(formId) {
+            var form = document.getElementById(formId);
+            form.classList.toggle('show');
+            if (form.classList.contains('show')) { setDefaultDates(); } 
+            else { state.editingItem = null; clearForm(formId); }
+        }
+
+        function clearForm(formId) {
+            var form = document.getElementById(formId);
+            var inputs = form.querySelectorAll('input, select, textarea');
+            for (var i = 0; i < inputs.length; i++) {
+                var el = inputs[i];
+                if (el.type === 'file') { el.value = ''; }
+                else if (el.type === 'date') { el.value = new Date().toISOString().split('T')[0]; }
+                else if (el.tagName === 'TEXTAREA') { el.value = ''; }
+                else if (el.type !== 'file' && el.type !== 'checkbox' && el.type !== 'radio') { el.value = ''; }
+            }
+            state.editingItem = null;
+        }
+
+        // ============================================================
+        // RESET ALL DATA
+        // ============================================================
+        function resetAllData() {
+            if (confirm('⚠️ This will DELETE ALL your data! Are you sure?')) {
+                if (confirm('Really? All project data will be permanently deleted!')) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    state = {
+                        project: { name: '', address: '', description: '', currency: '$', createdAt: null },
+                        materials: [],
+                        labor: [],
+                        payments: [],
+                        quality: [],
+                        customTabs: [],
+                        materialNames: ['Bricks', 'Cement', 'Steel Rods', 'Sand', 'Aggregate', 'Wood', 'Glass', 'Paint', 'Tiles', 'Plumbing', 'Electrical', 'Windows', 'Doors', 'Flooring', 'Roofing', 'Other'],
+                        editingItem: null
+                    };
+                    document.getElementById('setupScreen').style.display = 'flex';
+                    document.getElementById('mainApp').style.display = 'none';
+                    document.getElementById('projectName').value = '';
+                    document.getElementById('projectAddress').value = '';
+                    document.getElementById('projectDesc').value = '';
+                    showToast('🗑️ All data has been reset!', 'success');
+                }
+            }
+        }
+
+        // ============================================================
+        // CURRENCY CONVERSION
+        // ============================================================
+        function handleCurrencyChange() {
+            var newCurrency = document.getElementById('globalCurrency').value;
+            var oldCurrency = currentCurrency;
+            
+            if (newCurrency === oldCurrency) {
+                return;
+            }
+            
+            var hasData = state.materials.length > 0 || state.labor.length > 0 || 
+                          state.payments.length > 0 || state.customTabs.some(t => t.items.length > 0);
+            
+            if (!hasData) {
+                currentCurrency = newCurrency;
+                state.project.currency = newCurrency;
+                saveState();
+                renderAll();
+                showToast('💰 Currency changed to ' + newCurrency, 'info');
+                return;
+            }
+            
+            pendingCurrencyChange = newCurrency;
+            document.getElementById('fromCurrencyDisplay').value = oldCurrency + ' (current)';
+            document.getElementById('toCurrencySelect').value = newCurrency;
+            document.getElementById('fromCurrencyLabel').textContent = oldCurrency;
+            document.getElementById('toCurrencyLabel').textContent = newCurrency;
+            document.getElementById('conversionRate').value = '';
+            document.getElementById('currencyModal').classList.add('show');
+        }
+
+        function closeCurrencyModal() {
+            document.getElementById('currencyModal').classList.remove('show');
+            document.getElementById('globalCurrency').value = currentCurrency;
+            pendingCurrencyChange = null;
+        }
+
+        function confirmCurrencyConversion() {
+            var rate = parseFloat(document.getElementById('conversionRate').value);
+            var toCurrency = document.getElementById('toCurrencySelect').value;
+            
+            if (!rate || rate <= 0) {
+                showToast('❌ Please enter a valid conversion rate', 'error');
+                return;
+            }
+            
+            for (var i = 0; i < state.materials.length; i++) {
+                state.materials[i].cost = state.materials[i].cost * rate;
+            }
+            for (var j = 0; j < state.labor.length; j++) {
+                state.labor[j].pay = state.labor[j].pay * rate;
+            }
+            for (var k = 0; k < state.payments.length; k++) {
+                state.payments[k].amount = state.payments[k].amount * rate;
+            }
+            for (var t = 0; t < state.customTabs.length; t++) {
+                var tab = state.customTabs[t];
+                for (var ti = 0; ti < tab.items.length; ti++) {
+                    tab.items[ti].cost = tab.items[ti].cost * rate;
+                }
+            }
+            
+            currentCurrency = toCurrency;
+            state.project.currency = toCurrency;
+            saveState();
+            renderAll();
+            document.getElementById('currencyModal').classList.remove('show');
+            document.getElementById('globalCurrency').value = toCurrency;
+            showToast('✅ Currency converted to ' + toCurrency + ' (rate: ' + rate + ')', 'success');
+            pendingCurrencyChange = null;
+        }
+
+        // ============================================================
+        // BULK DELETE FUNCTIONS
+        // ============================================================
+        function toggleSelectAll(type) {
+            var checkbox = document.getElementById(type + 'SelectAll');
+            var checkboxes = document.querySelectorAll('input[name="' + type + '_selected"]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = checkbox.checked;
+            }
+        }
+
+        function getSelectedIds(type) {
+            var checkboxes = document.querySelectorAll('input[name="' + type + '_selected"]:checked');
+            var ids = [];
+            for (var i = 0; i < checkboxes.length; i++) {
+                ids.push(checkboxes[i].value);
+            }
+            return ids;
+        }
+
+        function deleteSelected(type) {
+            var ids = getSelectedIds(type);
+            if (ids.length === 0) { showToast('Please select items to delete', 'error'); return; }
+            if (!confirm('Delete ' + ids.length + ' selected items?')) return;
+            
+            if (type === 'material') { state.materials = state.materials.filter(function(m) { return ids.indexOf(m.id) === -1; }); }
+            else if (type === 'labor') { state.labor = state.labor.filter(function(l) { return ids.indexOf(l.id) === -1; }); }
+            else if (type === 'payment') { state.payments = state.payments.filter(function(p) { return ids.indexOf(p.id) === -1; }); }
+            else if (type === 'quality') { state.quality = state.quality.filter(function(q) { return ids.indexOf(q.id) === -1; }); }
+            
+            saveState();
+            renderAll();
+            showToast('✅ ' + ids.length + ' items deleted', 'success');
+        }
+
+        // ============================================================
+        // QUALITY STATUS QUICK EDIT
+        // ============================================================
+        function updateQualityStatus(id, newStatus) {
+            var item = state.quality.find(function(q) { return q.id === id; });
+            if (item) {
+                item.status = newStatus;
+                saveState();
+                renderQuality();
+                updateDashboard();
+                showToast('✅ Status updated to ' + newStatus, 'success');
+            }
+        }
+
+        function downloadQualityImage(id) {
+            var item = state.quality.find(function(q) { return q.id === id; });
+            if (!item || !item.photo) { showToast('No image to download', 'error'); return; }
+            var link = document.createElement('a');
+            link.href = item.photo;
+            link.download = 'quality_photo_' + item.item.replace(/\s+/g, '_') + '.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('📸 Image downloaded!', 'success');
+        }
+
+        function downloadFile(dataUrl, fileName) {
+            var link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = fileName || 'download.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('📥 File downloaded!', 'success');
+        }
+
+        // ============================================================
+        // DOWNLOAD CSV TEMPLATE
+        // ============================================================
+        function downloadCSVTemplate(type) {
+            var headers = '', sampleData = '';
+            var today = new Date().toISOString().split('T')[0];
+            if (type === 'material') {
+                headers = 'Material Name,Quantity,Unit,Date,Cost,Category,Note';
+                sampleData = 'Bricks,5000,units,' + today + ',2500,Civil,Sample data';
+            } else if (type === 'labor') {
+                headers = 'Contractor,Workers,Category,Date,Basis,Pay,Note';
+                sampleData = 'ABC Construction,10,General,' + today + ',daily,1000,Week 1 payment';
+            } else if (type === 'payment') {
+                headers = 'Contractor,Date,Type,Amount,Note';
+                sampleData = 'ABC Construction,' + today + ',Regular,5000,Advance payment';
+            } else if (type === 'quality') {
+                headers = 'Item,Date,Status,Inspector,Note';
+                sampleData = 'Concrete Strength,' + today + ',Pass,John Doe,Test passed';
+            }
+            var csv = headers + '\n' + sampleData;
+            var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = type + '_sample.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📄 Sample CSV downloaded!', 'success');
+        }
+
+        // ============================================================
+        // LABOR FUNCTION
+        // ============================================================
+        function addLabor() {
+            var dateEl = document.getElementsByName('laborDate')[0];
+            var countEl = document.getElementsByName('laborCount')[0];
+            var contractorEl = document.getElementsByName('contractorName')[0];
+            var categoryEl = document.getElementsByName('workerCategory')[0];
+            var basisEl = document.getElementsByName('wageBasis')[0];
+            var payEl = document.getElementsByName('laborPay')[0];
+            var noteEl = document.getElementsByName('laborNote')[0];
+            var fileInput = document.getElementById('laborFile');
+
+            var date = dateEl ? dateEl.value : '';
+            var count = countEl ? countEl.value : '';
+            var contractor = contractorEl ? contractorEl.value.trim() : '';
+            var category = categoryEl ? categoryEl.value : 'General';
+            var basis = basisEl ? basisEl.value : 'daily';
+            var pay = payEl ? payEl.value : '';
+            var note = noteEl ? noteEl.value.trim() : '';
+
+            if (!count || count === '') {
+                date = document.getElementById('laborDate') ? document.getElementById('laborDate').value : '';
+                count = document.getElementById('laborCount') ? document.getElementById('laborCount').value : '';
+                contractor = document.getElementById('contractorName') ? document.getElementById('contractorName').value.trim() : '';
+                category = document.getElementById('workerCategory') ? document.getElementById('workerCategory').value : 'General';
+                basis = document.getElementById('wageBasis') ? document.getElementById('wageBasis').value : 'daily';
+                pay = document.getElementById('laborPay') ? document.getElementById('laborPay').value : '';
+                note = document.getElementById('laborNote') ? document.getElementById('laborNote').value.trim() : '';
+            }
+
+            var countNum = parseFloat(count);
+            var payNum = parseFloat(pay);
+
+            var hasError = false;
+            if (!date || date === '') { showToast('❌ Please select a date', 'error'); hasError = true; }
+            if (!count || count === '' || count === 'undefined' || count === 'null') {
+                showToast('❌ Please enter number of workers', 'error'); hasError = true;
+            } else if (isNaN(countNum) || countNum <= 0) {
+                showToast('❌ Please enter a valid number of workers (greater than 0)', 'error'); hasError = true;
+            }
+            if (!contractor || contractor === '') { showToast('❌ Please enter contractor name', 'error'); hasError = true; }
+            if (!pay || pay === '' || pay === 'undefined' || pay === 'null') {
+                showToast('❌ Please enter pay amount', 'error'); hasError = true;
+            } else if (isNaN(payNum) || payNum <= 0) {
+                showToast('❌ Please enter a valid pay amount (greater than 0)', 'error'); hasError = true;
+            }
+            if (hasError) return;
+
+            if (state.editingItem && state.editingItem.type === 'labor') {
+                var idx = state.labor.findIndex(function(l) { return l.id === state.editingItem.id; });
+                if (idx !== -1) {
+                    state.labor[idx] = {
+                        id: state.labor[idx].id, date: date, count: countNum, contractor: contractor,
+                        category: category, basis: basis, pay: payNum, note: note || '',
+                        file: state.labor[idx].file, fileName: state.labor[idx].fileName
+                    };
+                    state.editingItem = null;
+                    saveState();
+                    renderAll();
+                    toggleForm('laborForm');
+                    showToast('✅ Labor updated for ' + contractor, 'success');
+                    return;
+                }
+            }
+
+            var entry = { id: generateId(), date: date, count: countNum, contractor: contractor,
+                category: category, basis: basis, pay: payNum, note: note || '', file: null, fileName: '' };
+
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    entry.file = e.target.result;
+                    entry.fileName = fileInput.files[0].name;
+                    state.labor.push(entry);
+                    saveState();
+                    renderAll();
+                    toggleForm('laborForm');
+                    showToast('✅ Added labor for ' + contractor + ' with file', 'success');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                return;
+            }
+
+            state.labor.push(entry);
+            saveState();
+            renderAll();
+            toggleForm('laborForm');
+            showToast('✅ Added labor for ' + contractor, 'success');
+        }
+
+        function editLabor(id) {
+            var item = state.labor.find(function(l) { return l.id === id; });
+            if (!item) { showToast('❌ Labor record not found', 'error'); return; }
+            state.editingItem = { type: 'labor', id: id };
+            document.getElementById('laborDate').value = item.date;
+            document.getElementById('laborCount').value = item.count;
+            document.getElementById('contractorName').value = item.contractor;
+            document.getElementById('workerCategory').value = item.category || 'General';
+            document.getElementById('wageBasis').value = item.basis;
+            document.getElementById('laborPay').value = item.pay;
+            document.getElementById('laborNote').value = item.note || '';
+            document.getElementById('laborFile').value = '';
+            document.getElementById('laborForm').classList.add('show');
+            document.getElementById('laborForm').scrollIntoView({ behavior: 'smooth' });
+            showToast('✏️ Editing ' + item.contractor, 'info');
+        }
+
+        function deleteLabor(id) {
+            if (!confirm('Delete this labor record?')) return;
+            var item = state.labor.find(function(l) { return l.id === id; });
+            state.labor = state.labor.filter(function(l) { return l.id !== id; });
+            saveState();
+            renderAll();
+            showToast('🗑️ Deleted ' + (item ? item.contractor : ''), 'success');
+        }
+
+        function setupLaborButton() {
+            var btn = document.getElementById('laborSubmitBtn');
+            if (btn) {
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    addLabor();
+                };
+            }
+        }
+
+        // ============================================================
+        // MATERIALS
+        // ============================================================
+        function addMaterial() {
+            var name = document.getElementById('matName').value.trim();
+            var qty = document.getElementById('matQty').value;
+            var unit = document.getElementById('matUnit').value.trim();
+            var date = document.getElementById('matDate').value;
+            var cost = document.getElementById('matCost').value;
+            var category = document.getElementById('matCategory').value;
+            var note = document.getElementById('matNote').value.trim();
+            var fileInput = document.getElementById('matFile');
+
+            if (!name || !qty || !unit || !date || !cost) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (state.editingItem && state.editingItem.type === 'material') {
+                var idx = state.materials.findIndex(function(m) { return m.id === state.editingItem.id; });
+                if (idx !== -1) {
+                    state.materials[idx] = {
+                        id: state.materials[idx].id, name: name, qty: parseFloat(qty), unit: unit,
+                        date: date, cost: parseFloat(cost), category: category, note: note,
+                        file: state.materials[idx].file, fileName: state.materials[idx].fileName
+                    };
+                    state.editingItem = null;
+                    saveState();
+                    renderAll();
+                    toggleForm('materialForm');
+                    showToast('✅ Material updated', 'success');
+                    return;
+                }
+            }
+
+            if (!state.materialNames.includes(name)) {
+                state.materialNames.push(name);
+                updateMaterialDatalist();
+            }
+
+            var entry = { id: generateId(), name: name, qty: parseFloat(qty), unit: unit, date: date,
+                cost: parseFloat(cost), category: category, note: note || '', file: null, fileName: '' };
+
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    entry.file = e.target.result;
+                    entry.fileName = fileInput.files[0].name;
+                    state.materials.push(entry);
+                    saveState();
+                    renderAll();
+                    toggleForm('materialForm');
+                    showToast('✅ Added ' + name + ' with file', 'success');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                return;
+            }
+
+            state.materials.push(entry);
+            saveState();
+            renderAll();
+            toggleForm('materialForm');
+            showToast('✅ Added ' + name, 'success');
+        }
+
+        function editMaterial(id) {
+            var item = state.materials.find(function(m) { return m.id === id; });
+            if (!item) return;
+            state.editingItem = { type: 'material', id: id };
+            document.getElementById('matName').value = item.name;
+            document.getElementById('matQty').value = item.qty;
+            document.getElementById('matUnit').value = item.unit;
+            document.getElementById('matDate').value = item.date;
+            document.getElementById('matCost').value = item.cost;
+            document.getElementById('matCategory').value = item.category || 'Civil';
+            document.getElementById('matNote').value = item.note || '';
+            document.getElementById('materialForm').classList.add('show');
+            document.getElementById('materialForm').scrollIntoView({ behavior: 'smooth' });
+            showToast('✏️ Editing ' + item.name, 'info');
+        }
+
+        function deleteMaterial(id) {
+            if (!confirm('Delete this material?')) return;
+            state.materials = state.materials.filter(function(m) { return m.id !== id; });
+            saveState();
+            renderAll();
+            showToast('🗑️ Deleted', 'success');
+        }
+
+        // ============================================================
+        // PAYMENTS
+        // ============================================================
+        function addPayment() {
+            var date = document.getElementById('paymentDate').value;
+            var amount = document.getElementById('paymentAmount').value;
+            var contractor = document.getElementById('paymentContractor').value.trim();
+            var type = document.getElementById('paymentType').value;
+            var note = document.getElementById('paymentNote').value.trim();
+            var fileInput = document.getElementById('paymentFile');
+
+            if (!date || !amount || !contractor) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            var amountNum = parseFloat(amount);
+            if (isNaN(amountNum) || amountNum <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+
+            if (state.editingItem && state.editingItem.type === 'payment') {
+                var idx = state.payments.findIndex(function(p) { return p.id === state.editingItem.id; });
+                if (idx !== -1) {
+                    state.payments[idx] = {
+                        id: state.payments[idx].id, date: date, amount: amountNum,
+                        contractor: contractor, type: type, note: note,
+                        file: state.payments[idx].file, fileName: state.payments[idx].fileName
+                    };
+                    state.editingItem = null;
+                    saveState();
+                    renderAll();
+                    toggleForm('paymentForm');
+                    showToast('✅ Payment updated', 'success');
+                    return;
+                }
+            }
+
+            var entry = { id: generateId(), date: date, amount: amountNum, contractor: contractor,
+                type: type, note: note || '', file: null, fileName: '' };
+
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    entry.file = e.target.result;
+                    entry.fileName = fileInput.files[0].name;
+                    state.payments.push(entry);
+                    saveState();
+                    renderAll();
+                    toggleForm('paymentForm');
+                    showToast('💰 Recorded payment with file', 'success');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                return;
+            }
+
+            state.payments.push(entry);
+            saveState();
+            renderAll();
+            toggleForm('paymentForm');
+            showToast('💰 Recorded payment', 'success');
+        }
+
+        function editPayment(id) {
+            var item = state.payments.find(function(p) { return p.id === id; });
+            if (!item) return;
+            state.editingItem = { type: 'payment', id: id };
+            document.getElementById('paymentDate').value = item.date;
+            document.getElementById('paymentAmount').value = item.amount;
+            document.getElementById('paymentContractor').value = item.contractor;
+            document.getElementById('paymentType').value = item.type || 'Regular';
+            document.getElementById('paymentNote').value = item.note || '';
+            document.getElementById('paymentForm').classList.add('show');
+            document.getElementById('paymentForm').scrollIntoView({ behavior: 'smooth' });
+            showToast('✏️ Editing payment', 'info');
+        }
+
+        function deletePayment(id) {
+            if (!confirm('Delete this payment?')) return;
+            state.payments = state.payments.filter(function(p) { return p.id !== id; });
+            saveState();
+            renderAll();
+            showToast('🗑️ Deleted', 'success');
+        }
+
+        // ============================================================
+        // QUALITY CHECKS
+        // ============================================================
+        function addQualityCheck() {
+            var item = document.getElementById('qualityItem').value.trim();
+            var date = document.getElementById('qualityDate').value;
+            var status = document.getElementById('qualityStatus').value;
+            var inspector = document.getElementById('qualityInspector').value.trim();
+            var note = document.getElementById('qualityNote').value.trim();
+            var fileInput = document.getElementById('qualityPhoto');
+
+            if (!item || !date || !inspector) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (state.editingItem && state.editingItem.type === 'quality') {
+                var idx = state.quality.findIndex(function(q) { return q.id === state.editingItem.id; });
+                if (idx !== -1) {
+                    state.quality[idx] = {
+                        id: state.quality[idx].id, item: item, date: date, status: status,
+                        inspector: inspector, note: note,
+                        photo: state.quality[idx].photo, photoName: state.quality[idx].photoName
+                    };
+                    state.editingItem = null;
+                    saveState();
+                    renderAll();
+                    toggleForm('qualityForm');
+                    showToast('✅ Quality check updated', 'success');
+                    return;
+                }
+            }
+
+            var entry = { id: generateId(), item: item, date: date, status: status,
+                inspector: inspector, note: note || '', photo: null, photoName: '' };
+
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    entry.photo = e.target.result;
+                    entry.photoName = fileInput.files[0].name;
+                    state.quality.push(entry);
+                    saveState();
+                    renderAll();
+                    toggleForm('qualityForm');
+                    showToast('📸 Quality check added with photo', 'success');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                return;
+            }
+
+            state.quality.push(entry);
+            saveState();
+            renderAll();
+            toggleForm('qualityForm');
+            showToast('✅ Quality check added', 'success');
+        }
+
+        function editQuality(id) {
+            var item = state.quality.find(function(q) { return q.id === id; });
+            if (!item) return;
+            state.editingItem = { type: 'quality', id: id };
+            document.getElementById('qualityItem').value = item.item;
+            document.getElementById('qualityDate').value = item.date;
+            document.getElementById('qualityStatus').value = item.status || 'Pending';
+            document.getElementById('qualityInspector').value = item.inspector;
+            document.getElementById('qualityNote').value = item.note || '';
+            document.getElementById('qualityForm').classList.add('show');
+            document.getElementById('qualityForm').scrollIntoView({ behavior: 'smooth' });
+            showToast('✏️ Editing quality check', 'info');
+        }
+
+        function deleteQuality(id) {
+            if (!confirm('Delete this quality check?')) return;
+            state.quality = state.quality.filter(function(q) { return q.id !== id; });
+            saveState();
+            renderAll();
+            showToast('🗑️ Deleted', 'success');
+        }
+
+        // ============================================================
+        // RENDER FUNCTIONS
+        // ============================================================
+        function renderAll() {
+            renderMaterials();
+            renderLabor();
+            renderPayments();
+            renderQuality();
+            renderCustomTabsAll();
+            updateDashboard();
+            updateBadgeCounts();
+            updateMaterialDatalist();
+            document.getElementById('displayProjectName').textContent = state.project.name || 'No Project';
+            document.getElementById('displayProjectAddress').textContent = state.project.address || '';
+        }
+
+        function renderMaterials() {
+            var container = document.getElementById('materialListContainer');
+            if (state.materials.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No materials added yet.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < state.materials.length; i++) {
+                var m = state.materials[i];
+                html += '<div class="list-item">';
+                html += '<span class="item-check"><input type="checkbox" name="material_selected" value="' + m.id + '"></span>';
+                html += '<span class="item-name" title="' + m.name + '">' + m.name + '</span>';
+                html += '<span class="item-meta">' + m.qty + '</span>';
+                html += '<span class="item-meta">' + m.unit + '</span>';
+                html += '<span class="item-date">' + m.date + '</span>';
+                html += '<span class="item-cost">' + formatCurrency(m.cost) + '</span>';
+                html += '<span class="item-meta">' + (m.category || 'Other') + '</span>';
+                html += '<div class="item-actions">';
+                if (m.file) { html += '<span class="file-indicator" onclick="viewFile(\'' + m.id + '\',\'material\')" title="' + (m.fileName || 'File attached') + '">📎</span>'; }
+                if (m.note) { html += '<span class="note-indicator" title="' + m.note + '">📝</span>'; }
+                html += '<button class="btn btn-warning btn-sm" onclick="editMaterial(\'' + m.id + '\')">✏️</button>';
+                html += '<button class="btn btn-danger btn-sm" onclick="deleteMaterial(\'' + m.id + '\')">✕</button>';
+                html += '</div></div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function renderLabor() {
+            var container = document.getElementById('laborListContainer');
+            if (state.labor.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No labor records yet.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < state.labor.length; i++) {
+                var l = state.labor[i];
+                html += '<div class="list-item">';
+                html += '<span class="item-check"><input type="checkbox" name="labor_selected" value="' + l.id + '"></span>';
+                html += '<span class="item-name" title="' + l.contractor + '">' + l.contractor + '</span>';
+                html += '<span class="item-meta">' + l.count + '</span>';
+                html += '<span class="item-meta">' + (l.category || 'General') + '</span>';
+                html += '<span class="item-date">' + l.date + '</span>';
+                html += '<span class="item-meta">' + l.basis + '</span>';
+                html += '<span class="item-cost">' + formatCurrency(l.pay) + '</span>';
+                html += '<div class="item-actions">';
+                if (l.file) { html += '<span class="file-indicator" onclick="viewFile(\'' + l.id + '\',\'labor\')" title="' + (l.fileName || 'File attached') + '">📎</span>'; }
+                if (l.note) { html += '<span class="note-indicator" title="' + l.note + '">📝</span>'; }
+                html += '<button class="btn btn-warning btn-sm" onclick="editLabor(\'' + l.id + '\')">✏️</button>';
+                html += '<button class="btn btn-danger btn-sm" onclick="deleteLabor(\'' + l.id + '\')">✕</button>';
+                html += '</div></div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function renderPayments() {
+            var container = document.getElementById('paymentListContainer');
+            if (state.payments.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No payments recorded yet.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < state.payments.length; i++) {
+                var p = state.payments[i];
+                html += '<div class="list-item">';
+                html += '<span class="item-check"><input type="checkbox" name="payment_selected" value="' + p.id + '"></span>';
+                html += '<span class="item-name" title="' + p.contractor + '">' + p.contractor + '</span>';
+                html += '<span class="item-date">' + p.date + '</span>';
+                html += '<span class="item-meta">' + (p.type || 'Regular') + '</span>';
+                html += '<span class="item-cost">' + formatCurrency(p.amount) + '</span>';
+                html += '<div class="item-actions">';
+                if (p.file) { html += '<span class="file-indicator" onclick="viewFile(\'' + p.id + '\',\'payment\')" title="' + (p.fileName || 'File attached') + '">📎</span>'; }
+                if (p.note) { html += '<span class="note-indicator" title="' + p.note + '">📝</span>'; }
+                html += '<button class="btn btn-warning btn-sm" onclick="editPayment(\'' + p.id + '\')">✏️</button>';
+                html += '<button class="btn btn-danger btn-sm" onclick="deletePayment(\'' + p.id + '\')">✕</button>';
+                html += '</div></div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function renderQuality() {
+            var container = document.getElementById('qualityListContainer');
+            if (state.quality.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No quality checks yet.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < state.quality.length; i++) {
+                var q = state.quality[i];
+                var statusClass = 'status-pending';
+                if (q.status === 'Pass') statusClass = 'status-pass';
+                else if (q.status === 'Fail') statusClass = 'status-fail';
+                
+                html += '<div class="list-item">';
+                html += '<span class="item-check"><input type="checkbox" name="quality_selected" value="' + q.id + '"></span>';
+                html += '<span class="item-name" title="' + q.item + '">' + q.item + '</span>';
+                html += '<span class="item-date">' + q.date + '</span>';
+                html += '<span class="item-meta"><span class="status-badge ' + statusClass + '">' + (q.status || 'Pending') + '</span></span>';
+                html += '<span class="item-meta">' + q.inspector + '</span>';
+                html += '<span class="item-meta">';
+                if (q.photo) {
+                    html += '<img src="' + q.photo + '" class="quality-thumb" onclick="viewPhoto(\'' + q.id + '\')" alt="Quality photo" style="cursor:pointer;">';
+                } else {
+                    html += '—';
+                }
+                html += '</span>';
+                html += '<div class="item-actions">';
+                if (q.note) { html += '<span class="note-indicator" title="' + q.note + '">📝</span>'; }
+                html += '<select class="edit-status-select" onchange="updateQualityStatus(\'' + q.id + '\', this.value)" style="font-size:8px;padding:1px 3px;">';
+                html += '<option value="Pass" ' + (q.status === 'Pass' ? 'selected' : '') + '>Pass</option>';
+                html += '<option value="Fail" ' + (q.status === 'Fail' ? 'selected' : '') + '>Fail</option>';
+                html += '<option value="Pending" ' + (q.status === 'Pending' ? 'selected' : '') + '>Pending</option>';
+                html += '</select>';
+                if (q.photo) {
+                    html += '<button class="btn-download-img" onclick="downloadQualityImage(\'' + q.id + '\')" title="Download Image">📥</button>';
+                }
+                html += '<button class="btn btn-warning btn-sm" onclick="editQuality(\'' + q.id + '\')">✏️</button>';
+                html += '<button class="btn btn-danger btn-sm" onclick="deleteQuality(\'' + q.id + '\')">✕</button>';
+                html += '</div></div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function renderCustomTabsAll() {
+            for (var i = 0; i < state.customTabs.length; i++) {
+                renderCustomTabItems(state.customTabs[i].id);
+            }
+        }
+
+        // ============================================================
+        // DASHBOARD
+        // ============================================================
+        function updateDashboard() {
+            var allItems = [];
+            
+            for (var i = 0; i < state.materials.length; i++) {
+                var m = state.materials[i];
+                allItems.push({ id: m.id, name: m.name, type: 'Material', displayName: m.name, date: m.date || '', cost: m.cost || 0, note: m.note || '' });
+            }
+            for (var j = 0; j < state.labor.length; j++) {
+                var l = state.labor[j];
+                allItems.push({ id: l.id, name: l.contractor, type: 'Labor', displayName: l.contractor + ' (' + (l.category || 'General') + ')', date: l.date || '', cost: l.pay || 0, note: l.note || '' });
+            }
+            for (var k = 0; k < state.payments.length; k++) {
+                var p = state.payments[k];
+                allItems.push({ id: p.id, name: p.contractor, type: 'Payment', displayName: p.contractor + ' (Payment)', date: p.date || '', cost: p.amount || 0, note: p.note || '' });
+            }
+            for (var t = 0; t < state.customTabs.length; t++) {
+                var tab = state.customTabs[t];
+                for (var ti = 0; ti < tab.items.length; ti++) {
+                    var item = tab.items[ti];
+                    allItems.push({ id: item.id, name: item.name, type: tab.name, displayName: item.name + ' (' + tab.name + ')', date: item.date || '', cost: item.cost || 0, note: item.note || '' });
+                }
+            }
+            
+            var materialTotal = 0, laborTotal = 0, paymentTotal = 0, customTotal = 0;
+            for (var mi = 0; mi < state.materials.length; mi++) materialTotal += state.materials[mi].cost || 0;
+            for (var li = 0; li < state.labor.length; li++) laborTotal += state.labor[li].pay || 0;
+            for (var pi = 0; pi < state.payments.length; pi++) paymentTotal += state.payments[pi].amount || 0;
+            for (var ct = 0; ct < state.customTabs.length; ct++) {
+                var tab = state.customTabs[ct];
+                for (var ci = 0; ci < tab.items.length; ci++) customTotal += tab.items[ci].cost || 0;
+            }
+            
+            var totalCost = materialTotal + laborTotal + customTotal;
+            var dueAmount = totalCost - paymentTotal;
+            var totalEntries = state.materials.length + state.labor.length + state.payments.length + state.quality.length;
+            for (var ce = 0; ce < state.customTabs.length; ce++) totalEntries += state.customTabs[ce].items.length;
+
+            document.getElementById('totalCost').textContent = formatCurrency(totalCost);
+            document.getElementById('totalPaid').textContent = formatCurrency(paymentTotal);
+            document.getElementById('dueAmount').textContent = formatCurrency(Math.max(0, dueAmount));
+            document.getElementById('itemCount').textContent = totalEntries;
+
+            document.getElementById('dashMatTotal').textContent = formatCurrency(materialTotal);
+            document.getElementById('dashLabTotal').textContent = formatCurrency(laborTotal);
+            document.getElementById('dashPaidTotal').textContent = formatCurrency(paymentTotal);
+            document.getElementById('dashDueTotal').textContent = formatCurrency(Math.max(0, dueAmount));
+            document.getElementById('dashMatCount').textContent = state.materials.length;
+            document.getElementById('dashLabCount').textContent = state.labor.length;
+            document.getElementById('dashPayCount').textContent = state.payments.length;
+            document.getElementById('dashQualCount').textContent = state.quality.length;
+
+            var total = materialTotal + laborTotal + customTotal || 1;
+            document.getElementById('materialPercent').textContent = Math.round((materialTotal / total) * 100) + '%';
+            document.getElementById('laborPercent').textContent = Math.round((laborTotal / total) * 100) + '%';
+            document.getElementById('otherPercent').textContent = Math.round((customTotal / total) * 100) + '%';
+
+            updateCharts();
+            renderBreakdown(allItems);
+            updateBadgeCounts();
+        }
+
+        function renderBreakdown(items) {
+            var container = document.getElementById('breakdownList');
+            var sortType = document.getElementById('sortType').value;
+            var startDate = document.getElementById('sortStartDate').value;
+            var endDate = document.getElementById('sortEndDate').value;
+
+            var filteredItems = items || [];
+            if (startDate) filteredItems = filteredItems.filter(function(i) { return i.date >= startDate; });
+            if (endDate) filteredItems = filteredItems.filter(function(i) { return i.date <= endDate; });
+
+            if (sortType === 'date') filteredItems.sort(function(a, b) { return a.date.localeCompare(b.date); });
+            else if (sortType === 'type') filteredItems.sort(function(a, b) { return a.type.localeCompare(b.type); });
+            else if (sortType === 'cost') filteredItems.sort(function(a, b) { return (b.cost || 0) - (a.cost || 0); });
+            else if (sortType === 'name') filteredItems.sort(function(a, b) { return (a.displayName || '').localeCompare(b.displayName || ''); });
+
+            if (filteredItems.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No entries in this range</div>';
+                return;
+            }
+
+            var html = '<div style="overflow-x:auto;">';
+            html += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:2px;font-weight:700;font-size:9px;color:var(--gray-500);padding-bottom:3px;border-bottom:2px solid var(--gray-200);">';
+            html += '<span>Item</span><span>Type</span><span>Date</span><span>Cost</span><span>Note</span>';
+            html += '</div>';
+            var maxItems = Math.min(filteredItems.length, 50);
+            for (var idx = 0; idx < maxItems; idx++) {
+                var it = filteredItems[idx];
+                var cost = it.cost || 0;
+                var note = it.note || '';
+                html += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:2px;padding:3px 0;border-bottom:1px solid var(--gray-100);font-size:10px;">';
+                html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (it.displayName || it.name || '') + '</span>';
+                html += '<span style="font-size:8px;color:var(--gray-500);">' + it.type + '</span>';
+                html += '<span style="font-size:9px;color:var(--gray-400);">' + (it.date || '') + '</span>';
+                html += '<span style="font-weight:600;">' + formatCurrency(cost) + '</span>';
+                html += '<span style="font-size:9px;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + note + '</span>';
+                html += '</div>';
+            }
+            if (filteredItems.length > 50) {
+                html += '<div style="text-align:center;padding:4px;color:var(--gray-500);font-size:9px;">... and ' + (filteredItems.length - 50) + ' more entries</div>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ----- CHARTS -----
+        function updateCharts() {
+            var filter = document.getElementById('chartFilter').value;
+            var now = new Date();
+            var startDate = '';
+            if (filter === 'month') startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            else if (filter === 'quarter') startDate = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1).toISOString().split('T')[0];
+            else if (filter === 'year') startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+
+            var mats = state.materials, lab = state.labor;
+            if (startDate) {
+                mats = mats.filter(function(m) { return m.date >= startDate; });
+                lab = lab.filter(function(l) { return l.date >= startDate; });
+            }
+
+            var materialTotal = 0, laborTotal = 0;
+            for (var i = 0; i < mats.length; i++) materialTotal += mats[i].cost || 0;
+            for (var j = 0; j < lab.length; j++) laborTotal += lab[j].pay || 0;
+
+            var ctx1 = document.getElementById('costPieChart').getContext('2d');
+            if (pieChartInstance) pieChartInstance.destroy();
+            pieChartInstance = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Materials', 'Labor'],
+                    datasets: [{ data: [materialTotal || 1, laborTotal || 1], backgroundColor: ['#2b6cb0', '#38a169'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 8 } } } } }
+            });
+
+            var ctx2 = document.getElementById('costBarChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            
+            var categories = {};
+            for (var m = 0; m < mats.length; m++) {
+                var cat = mats[m].category || 'Other';
+                categories[cat] = (categories[cat] || 0) + mats[m].cost;
+            }
+            var catLabels = Object.keys(categories);
+            var catValues = Object.values(categories);
+
+            barChartInstance = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: catLabels.length ? catLabels : ['No Data'],
+                    datasets: [{ label: 'Cost by Category', data: catLabels.length ? catValues : [0], backgroundColor: '#2b6cb0', borderRadius: 3 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { font: { size: 7 } } }, x: { ticks: { font: { size: 7 }, maxRotation: 45 } } }
+                }
+            });
+        }
+
+        // ============================================================
+        // EXPORT FUNCTIONS
+        // ============================================================
+        function exportJSON() {
+            var data = {
+                project: state.project,
+                materials: state.materials,
+                labor: state.labor,
+                payments: state.payments,
+                quality: state.quality,
+                customTabs: state.customTabs,
+                materialNames: state.materialNames,
+                exportedAt: new Date().toISOString()
+            };
+            var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'building_data_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📤 JSON exported!', 'success');
+        }
+
+        function exportCSV() {
+            var csv = 'Type,Name,Quantity,Unit,Date,Cost,Category,Note\n';
+            for (var i = 0; i < state.materials.length; i++) {
+                var m = state.materials[i];
+                csv += 'Material,' + m.name + ',' + m.qty + ',' + m.unit + ',' + m.date + ',' + m.cost + ',' + (m.category || 'Other') + ',' + (m.note || '') + '\n';
+            }
+            for (var j = 0; j < state.labor.length; j++) {
+                var l = state.labor[j];
+                csv += 'Labor,' + l.contractor + ',' + l.count + ',' + (l.category || 'General') + ',' + l.date + ',' + l.pay + ',' + l.basis + ',' + (l.note || '') + '\n';
+            }
+            for (var k = 0; k < state.payments.length; k++) {
+                var p = state.payments[k];
+                csv += 'Payment,' + p.contractor + ',' + p.amount + ',' + p.type + ',' + p.date + ',' + p.amount + ',' + p.type + ',' + (p.note || '') + '\n';
+            }
+            for (var q = 0; q < state.quality.length; q++) {
+                var qc = state.quality[q];
+                csv += 'Quality,' + qc.item + ',' + qc.status + ',' + qc.inspector + ',' + qc.date + ',,' + qc.status + ',' + (qc.note || '') + '\n';
+            }
+            for (var t = 0; t < state.customTabs.length; t++) {
+                var tab = state.customTabs[t];
+                for (var ti = 0; ti < tab.items.length; ti++) {
+                    var item = tab.items[ti];
+                    csv += tab.name + ',' + item.name + ',' + item.qty + ',' + item.unit + ',' + item.date + ',' + item.cost + ',,' + (item.note || '') + '\n';
+                }
+            }
+            var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'building_data_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📊 CSV exported!', 'success');
+        }
+
+        // ============================================================
+        // IMPORT CSV
+        // ============================================================
+        function importCSVFile(event, type) {
+            var file = event.target.files[0];
+            if (!file) {
+                var fileInput = document.getElementById('csvImportFile');
+                if (fileInput && fileInput.files && fileInput.files[0]) file = fileInput.files[0];
+                if (!file) return;
+            }
+            
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var text = e.target.result;
+                    var lines = text.split('\n').filter(function(line) { return line.trim() !== ''; });
+                    if (lines.length < 2) { showToast('CSV is empty or invalid', 'error'); return; }
+                    
+                    var count = 0;
+                    for (var i = 1; i < lines.length; i++) {
+                        var values = lines[i].split(',').map(function(v) { return v.replace(/^"|"$/g, '').trim(); });
+                        if (values.length < 2) continue;
+                        
+                        if (type === 'material') {
+                            var name = values[0] || '', qty = values[1] || '', unit = values[2] || '';
+                            var dateRaw = values[3] || new Date().toISOString().split('T')[0];
+                            var date = normalizeDate(dateRaw);
+                            var cost = values[4] || '', category = values[5] || 'Other', note = values[6] || '';
+                            if (name && qty && cost) {
+                                state.materials.push({
+                                    id: generateId(), name: name, qty: parseFloat(qty) || 0, unit: unit || '',
+                                    date: date, cost: parseFloat(cost) || 0, category: category || 'Other',
+                                    note: note || '', file: null, fileName: ''
+                                });
+                                if (!state.materialNames.includes(name)) state.materialNames.push(name);
+                                count++;
+                            }
+                        } else if (type === 'labor') {
+                            var contractor = values[0] || '', workers = values[1] || '', category = values[2] || 'General';
+                            var dateRaw = values[3] || new Date().toISOString().split('T')[0];
+                            var date = normalizeDate(dateRaw);
+                            var basis = values[4] || 'daily', pay = values[5] || '', note = values[6] || '';
+                            if (contractor && workers && pay) {
+                                state.labor.push({
+                                    id: generateId(), contractor: contractor, count: parseFloat(workers) || 0,
+                                    category: category || 'General', date: date, basis: basis || 'daily',
+                                    pay: parseFloat(pay) || 0, note: note || '', file: null, fileName: ''
+                                });
+                                count++;
+                            }
+                        } else if (type === 'payment') {
+                            var contractor = values[0] || '';
+                            var dateRaw = values[1] || new Date().toISOString().split('T')[0];
+                            var date = normalizeDate(dateRaw);
+                            var typeVal = values[2] || 'Regular', amount = values[3] || '', note = values[4] || '';
+                            if (contractor && amount) {
+                                state.payments.push({
+                                    id: generateId(), contractor: contractor, date: date,
+                                    type: typeVal || 'Regular', amount: parseFloat(amount) || 0,
+                                    note: note || '', file: null, fileName: ''
+                                });
+                                count++;
+                            }
+                        } else if (type === 'quality') {
+                            var item = values[0] || '';
+                            var dateRaw = values[1] || new Date().toISOString().split('T')[0];
+                            var date = normalizeDate(dateRaw);
+                            var status = values[2] || 'Pending', inspector = values[3] || '', note = values[4] || '';
+                            if (item && inspector) {
+                                state.quality.push({
+                                    id: generateId(), item: item, date: date, status: status || 'Pending',
+                                    inspector: inspector, note: note || '', photo: null, photoName: ''
+                                });
+                                count++;
+                            }
+                        }
+                    }
+                    
+                    saveState();
+                    renderAll();
+                    updateMaterialDatalist();
+                    renderTabManagement();
+                    
+                    showToast('📥 Imported ' + count + ' ' + type + ' records', 'success');
+                    if (event && event.target) event.target.value = '';
+                    var fileInput2 = document.getElementById('csvImportFile');
+                    if (fileInput2) fileInput2.value = '';
+                    
+                } catch (err) {
+                    showToast('Error parsing CSV: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ============================================================
+        // IMPORT JSON
+        // ============================================================
+        function importJSON(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var data = JSON.parse(e.target.result);
+                    if (data.project) {
+                        state.project = data.project;
+                        state.materials = data.materials || [];
+                        state.labor = data.labor || [];
+                        state.payments = data.payments || [];
+                        state.quality = data.quality || [];
+                        state.customTabs = data.customTabs || [];
+                        state.materialNames = data.materialNames || state.materialNames;
+                        currentCurrency = state.project.currency || '$';
+                        saveState();
+                        renderAll();
+                        renderTabManagement();
+                        setupLaborButton();
+                        document.getElementById('globalCurrency').value = currentCurrency;
+                        showToast('✅ Data imported!', 'success');
+                        document.getElementById('jsonImport').value = '';
+                    } else {
+                        showToast('❌ Invalid JSON', 'error');
+                    }
+                } catch (err) {
+                    showToast('❌ Error: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ============================================================
+        // VIEW FILE / PHOTO
+        // ============================================================
+        function viewFile(id, type) {
+            var item = null;
+            if (type === 'material') item = state.materials.find(function(m) { return m.id === id; });
+            else if (type === 'labor') item = state.labor.find(function(l) { return l.id === id; });
+            else if (type === 'payment') item = state.payments.find(function(p) { return p.id === id; });
+            else if (type === 'quality') item = state.quality.find(function(q) { return q.id === id; });
+
+            if (!item) { showToast('Item not found', 'error'); return; }
+            
+            var fileData = item.file || item.photo;
+            if (!fileData) { showToast('No file attached', 'error'); return; }
+
+            var fileName = item.fileName || item.photoName || 'Attached File';
+            var modal = document.getElementById('modal');
+            var body = document.getElementById('modalBody');
+            var isImage = fileData.startsWith('data:image');
+            
+            body.innerHTML = '<h3>📎 ' + fileName + '</h3>';
+            if (isImage) {
+                body.innerHTML += '<img src="' + fileData + '" style="max-width:100%;max-height:350px;border-radius:6px;margin:6px 0;border:1px solid #e2e8f0;">';
+                body.innerHTML += '<button class="btn btn-primary btn-sm" onclick="downloadFile(\'' + fileData + '\', \'' + fileName + '\')" style="margin-top:6px;">📥 Download Image</button>';
+            } else {
+                body.innerHTML += '<iframe src="' + fileData + '" style="width:100%;height:350px;border:none;border-radius:6px;margin:6px 0;"></iframe>';
+                body.innerHTML += '<button class="btn btn-primary btn-sm" onclick="downloadFile(\'' + fileData + '\', \'' + fileName + '\')" style="margin-top:6px;">📥 Download File</button>';
+            }
+            body.innerHTML += '<div style="font-size:11px;color:var(--gray-500);margin-top:8px;">';
+            body.innerHTML += '<p><strong>Item:</strong> ' + (item.name || item.item || item.contractor || '') + '</p>';
+            body.innerHTML += '<p><strong>Type:</strong> ' + type.charAt(0).toUpperCase() + type.slice(1) + '</p>';
+            if (item.note) { body.innerHTML += '<p><strong>Note:</strong> ' + item.note + '</p>'; }
+            body.innerHTML += '</div>';
+            body.innerHTML += '<button class="btn btn-primary btn-block" onclick="closeModal()" style="margin-top:8px;">Close</button>';
+            modal.classList.add('show');
+        }
+
+        function viewPhoto(id) {
+            var item = state.quality.find(function(q) { return q.id === id; });
+            if (item && item.photo) {
+                var modal = document.getElementById('modal');
+                var body = document.getElementById('modalBody');
+                body.innerHTML = '<h3>📸 Quality Photo</h3>';
+                body.innerHTML += '<img src="' + item.photo + '" style="max-width:100%;border-radius:6px;margin:6px 0;border:1px solid #e2e8f0;">';
+                body.innerHTML += '<p style="font-size:11px;color:var(--gray-500);"><strong>Item:</strong> ' + item.item + '</p>';
+                body.innerHTML += '<p style="font-size:11px;color:var(--gray-500);"><strong>Status:</strong> ' + item.status + '</p>';
+                body.innerHTML += '<p style="font-size:11px;color:var(--gray-500);"><strong>Inspector:</strong> ' + item.inspector + '</p>';
+                body.innerHTML += '<button class="btn btn-primary btn-sm" onclick="downloadQualityImage(\'' + id + '\')" style="margin:6px;">📥 Download Image</button>';
+                body.innerHTML += '<button class="btn btn-primary btn-block" onclick="closeModal()">Close</button>';
+                modal.classList.add('show');
+            }
+        }
+
+        function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+        // ============================================================
+        // CUSTOM TABS
+        // ============================================================
+        function renderTabManagement() {
+            var container = document.getElementById('tabManagement');
+            var html = '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+            var defaultTabs = ['Materials', 'Labor', 'Payments', 'Quality'];
+            var allTabs = defaultTabs.concat(state.customTabs.map(function(t) { return t.name; }));
+            for (var i = 0; i < allTabs.length; i++) {
+                var name = allTabs[i];
+                var isCustom = state.customTabs.some(function(t) { return t.name === name; });
+                html += '<div class="tab-chip" style="background:var(--gray-100);padding:2px 8px;border-radius:10px;font-size:10px;display:flex;align-items:center;gap:4px;">';
+                html += name;
+                if (isCustom) {
+                    html += '<span onclick="removeCustomTab(\'' + name + '\')" style="cursor:pointer;color:var(--danger);font-weight:700;">✕</span>';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function addCustomTab() {
+            var name = document.getElementById('newTabName').value.trim();
+            if (!name) { showToast('Please enter a tab name', 'error'); return; }
+            if (name.length > 20) { showToast('Tab name too long (max 20 chars)', 'error'); return; }
+            if (state.customTabs.some(function(t) { return t.name === name; })) {
+                showToast('Tab name already exists', 'error');
+                return;
+            }
+
+            var id = 'custom_' + generateId();
+            state.customTabs.push({ id: id, name: name, items: [] });
+            saveState();
+            renderTabManagement();
+            
+            var navTabs = document.getElementById('navTabs');
+            var btn = document.createElement('button');
+            btn.className = 'nav-tab';
+            btn.dataset.tab = id;
+            btn.onclick = function() { switchTab(id); };
+            btn.innerHTML = '📑 ' + name + ' <span class="badge-tab">0</span>';
+            navTabs.appendChild(btn);
+            
+            var contentArea = document.getElementById('contentArea');
+            var div = document.createElement('div');
+            div.className = 'tab-content';
+            div.id = 'tab-' + id;
+            div.innerHTML = '<div class="tab-help-text"><strong>📑 ' + name + ':</strong> Manage custom items for this category. Add, edit, or delete entries as needed.</div>' +
+                '<div class="section-card">' +
+                '<div class="card-header">' +
+                '<span class="title">📑 ' + name + '</span>' +
+                '<div class="card-actions">' +
+                '<button class="btn btn-primary btn-sm" onclick="addCustomItem(\'' + id + '\')">+ Add</button>' +
+                '<button class="btn btn-danger btn-sm" onclick="deleteSelectedCustom(\'' + id + '\')">🗑️ Delete Selected</button>' +
+                '<button class="btn-download-csv" onclick="downloadCSVTemplate(\'custom\', \'' + id + '\')">📄 Sample CSV</button>' +
+                '</div></div>' +
+                '<div class="add-form" id="customForm_' + id + '">' +
+                '<div class="form-grid-3">' +
+                '<div class="form-group"><label>Item Name</label><input type="text" id="customName_' + id + '" placeholder="Item name"></div>' +
+                '<div class="form-group"><label>Qty</label><input type="number" id="customQty_' + id + '" placeholder="0"></div>' +
+                '<div class="form-group"><label>Unit</label><input type="text" id="customUnit_' + id + '" placeholder="Unit"></div>' +
+                '</div>' +
+                '<div class="form-grid-2">' +
+                '<div class="form-group"><label>Date</label><input type="date" id="customDate_' + id + '"></div>' +
+                '<div class="form-group"><label>Cost</label><input type="number" id="customCost_' + id + '" placeholder="0.00"></div>' +
+                '</div>' +
+                '<div class="form-group"><label>📝 Note</label><input type="text" id="customNote_' + id + '" placeholder="Optional note"></div>' +
+                '<div class="form-group"><label>📎 File</label><input type="file" id="customFile_' + id + '" accept="image/*,.pdf"></div>' +
+                '<button class="btn btn-success btn-block" onclick="addCustomItemData(\'' + id + '\')">➕ Add Item</button>' +
+                '</div>' +
+                '<div class="table-header grid-materials">' +
+                '<span><input type="checkbox" id="customSelectAll_' + id + '" onchange="toggleSelectAllCustom(\'' + id + '\')"></span>' +
+                '<span>Name</span><span>Qty</span><span>Unit</span><span>Date</span><span>Cost</span><span>Actions</span>' +
+                '</div>' +
+                '<div class="list-container"><div id="customList_' + id + '"><div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No items yet.</div></div></div>' +
+                '</div>';
+            contentArea.appendChild(div);
+            
+            document.getElementById('newTabName').value = '';
+            var today = new Date().toISOString().split('T')[0];
+            var dateInput = document.getElementById('customDate_' + id);
+            if (dateInput) dateInput.value = today;
+            showToast('✅ Tab "' + name + '" added!', 'success');
+        }
+
+        function removeCustomTab(name) {
+            if (!confirm('Delete tab "' + name + '" and all its data?')) return;
+            var tab = state.customTabs.find(function(t) { return t.name === name; });
+            if (!tab) return;
+            state.customTabs = state.customTabs.filter(function(t) { return t.id !== tab.id; });
+            saveState();
+            renderTabManagement();
+            var navBtn = document.querySelector('.nav-tab[data-tab="' + tab.id + '"]');
+            if (navBtn) navBtn.remove();
+            var content = document.getElementById('tab-' + tab.id);
+            if (content) content.remove();
+            showToast('🗑️ Tab "' + name + '" removed', 'success');
+            switchTab('dashboard');
+        }
+
+        function addCustomItem(tabId) {
+            var form = document.getElementById('customForm_' + tabId);
+            if (form) form.classList.toggle('show');
+            var today = new Date().toISOString().split('T')[0];
+            var dateInput = document.getElementById('customDate_' + tabId);
+            if (dateInput && !dateInput.value) dateInput.value = today;
+        }
+
+        function addCustomItemData(tabId) {
+            var tab = state.customTabs.find(function(t) { return t.id === tabId; });
+            if (!tab) { showToast('Tab not found', 'error'); return; }
+
+            var name = document.getElementById('customName_' + tabId).value.trim();
+            var qty = document.getElementById('customQty_' + tabId).value;
+            var unit = document.getElementById('customUnit_' + tabId).value.trim();
+            var date = document.getElementById('customDate_' + tabId).value;
+            var cost = document.getElementById('customCost_' + tabId).value;
+            var note = document.getElementById('customNote_' + tabId).value.trim();
+            var fileInput = document.getElementById('customFile_' + tabId);
+
+            if (!name || !qty || !unit || !date || !cost) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            if (tab.editingItem) {
+                var idx = tab.items.findIndex(function(i) { return i.id === tab.editingItem; });
+                if (idx !== -1) {
+                    tab.items[idx] = { 
+                        id: tab.items[idx].id, name: name, qty: parseFloat(qty), unit: unit, 
+                        date: date, cost: parseFloat(cost), note: note,
+                        file: tab.items[idx].file, fileName: tab.items[idx].fileName
+                    };
+                    tab.editingItem = null;
+                    saveState();
+                    renderAll();
+                    showToast('✅ Item updated', 'success');
+                    return;
+                }
+            }
+
+            var entry = { id: generateId(), name: name, qty: parseFloat(qty), unit: unit, date: date, cost: parseFloat(cost), note: note || '', file: null, fileName: '' };
+
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    entry.file = e.target.result;
+                    entry.fileName = fileInput.files[0].name;
+                    tab.items.push(entry);
+                    saveState();
+                    renderAll();
+                    showToast('✅ Added ' + name + ' with file', 'success');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                return;
+            }
+
+            tab.items.push(entry);
+            saveState();
+            renderAll();
+            showToast('✅ Added ' + name, 'success');
+        }
+
+        function editCustomItem(tabId, itemId) {
+            var tab = state.customTabs.find(function(t) { return t.id === tabId; });
+            if (!tab) return;
+            var item = tab.items.find(function(i) { return i.id === itemId; });
+            if (!item) return;
+            tab.editingItem = itemId;
+            document.getElementById('customName_' + tabId).value = item.name;
+            document.getElementById('customQty_' + tabId).value = item.qty;
+            document.getElementById('customUnit_' + tabId).value = item.unit;
+            document.getElementById('customDate_' + tabId).value = item.date;
+            document.getElementById('customCost_' + tabId).value = item.cost;
+            document.getElementById('customNote_' + tabId).value = item.note || '';
+            var form = document.getElementById('customForm_' + tabId);
+            if (form) form.classList.add('show');
+            document.getElementById('customForm_' + tabId).scrollIntoView({ behavior: 'smooth' });
+            showToast('✏️ Editing ' + item.name, 'info');
+        }
+
+        function deleteCustomItem(tabId, itemId) {
+            if (!confirm('Delete this item?')) return;
+            var tab = state.customTabs.find(function(t) { return t.id === tabId; });
+            if (!tab) return;
+            tab.items = tab.items.filter(function(i) { return i.id !== itemId; });
+            tab.editingItem = null;
+            saveState();
+            renderAll();
+            showToast('🗑️ Deleted', 'success');
+        }
+
+        function renderCustomTabItems(tabId) {
+            var tab = state.customTabs.find(function(t) { return t.id === tabId; });
+            if (!tab) return;
+            var container = document.getElementById('customList_' + tabId);
+            if (!container) return;
+            if (tab.items.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--gray-500);font-size:10px;">No items yet.</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < tab.items.length; i++) {
+                var item = tab.items[i];
+                html += '<div class="list-item">';
+                html += '<span class="item-check"><input type="checkbox" name="custom_selected_' + tabId + '" value="' + item.id + '"></span>';
+                html += '<span class="item-name" title="' + item.name + '">' + item.name + '</span>';
+                html += '<span class="item-meta">' + item.qty + '</span>';
+                html += '<span class="item-meta">' + item.unit + '</span>';
+                html += '<span class="item-date">' + item.date + '</span>';
+                html += '<span class="item-cost">' + formatCurrency(item.cost) + '</span>';
+                html += '<div class="item-actions">';
+                if (item.file) { html += '<span class="file-indicator" onclick="viewCustomFile(\'' + tabId + '\',\'' + item.id + '\')" title="' + (item.fileName || 'File attached') + '">📎</span>'; }
+                if (item.note) { html += '<span class="note-indicator" title="' + item.note + '">📝</span>'; }
+                html += '<button class="btn btn-warning btn-sm" onclick="editCustomItem(\'' + tabId + '\',\'' + item.id + '\')">✏️</button>';
+                html += '<button class="btn btn-danger btn-sm" onclick="deleteCustomItem(\'' + tabId + '\',\'' + item.id + '\')">✕</button>';
+                html += '</div></div>';
+            }
+            container.innerHTML = html;
+            var badge = document.querySelector('.nav-tab[data-tab="' + tabId + '"] .badge-tab');
+            if (badge) badge.textContent = tab.items.length;
+        }
+
+        function toggleSelectAllCustom(tabId) {
+            var checkbox = document.getElementById('customSelectAll_' + tabId);
+            var checkboxes = document.querySelectorAll('input[name="custom_selected_' + tabId + '"]');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = checkbox.checked;
+            }
+        }
+
+        function deleteSelectedCustom(tabId) {
+            var checkboxes = document.querySelectorAll('input[name="custom_selected_' + tabId + '"]:checked');
+            var ids = [];
+            for (var i = 0; i < checkboxes.length; i++) {
+                ids.push(checkboxes[i].value);
+            }
+            if (ids.length === 0) { showToast('Please select items to delete', 'error'); return; }
+            if (!confirm('Delete ' + ids.length + ' selected items?')) return;
+            var tab = state.customTabs.find(function(t) { return t.id === tabId; });
+            if (!tab) return;
+            tab.items = tab.items.filter(function(i) { return ids.indexOf(i.id) === -1; });
+            saveState();
+            renderAll();
+            showToast('✅ ' + ids.length + ' items deleted', 'success');
+        }
+
+        function viewCustomFile(tabId, itemId) {
+            var tab = state.customTabs.find(function(t) { return t.id === tabId; });
+            if (!tab) return;
+            var item = tab.items.find(function(i) { return i.id === itemId; });
+            if (!item || !item.file) { showToast('No file attached', 'error'); return; }
+            var modal = document.getElementById('modal');
+            var body = document.getElementById('modalBody');
+            var isImage = item.file.startsWith('data:image');
+            body.innerHTML = '<h3>📎 ' + (item.fileName || 'Attached File') + '</h3>';
+            if (isImage) {
+                body.innerHTML += '<img src="' + item.file + '" style="max-width:100%;max-height:350px;border-radius:6px;margin:6px 0;border:1px solid #e2e8f0;">';
+                body.innerHTML += '<button class="btn btn-primary btn-sm" onclick="downloadFile(\'' + item.file + '\', \'' + (item.fileName || 'download.png') + '\')" style="margin-top:6px;">📥 Download Image</button>';
+            } else {
+                body.innerHTML += '<iframe src="' + item.file + '" style="width:100%;height:350px;border:none;border-radius:6px;margin:6px 0;"></iframe>';
+                body.innerHTML += '<button class="btn btn-primary btn-sm" onclick="downloadFile(\'' + item.file + '\', \'' + (item.fileName || 'download.pdf') + '\')" style="margin-top:6px;">📥 Download File</button>';
+            }
+            body.innerHTML += '<div style="font-size:11px;color:var(--gray-500);">';
+            body.innerHTML += '<p><strong>Item:</strong> ' + item.name + '</p>';
+            if (item.note) { body.innerHTML += '<p><strong>Note:</strong> ' + item.note + '</p>'; }
+            body.innerHTML += '</div>';
+            body.innerHTML += '<button class="btn btn-primary btn-block" onclick="closeModal()">Close</button>';
+            modal.classList.add('show');
+        }
+
+        // ============================================================
+        // NAVIGATION & UI HELPERS
+        // ============================================================
+        function switchTab(tab) {
+            var tabs = document.querySelectorAll('.nav-tab');
+            for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+            var bottomItems = document.querySelectorAll('.bottom-nav-item');
+            for (var j = 0; j < bottomItems.length; j++) bottomItems[j].classList.remove('active');
+            
+            var navTab = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
+            if (navTab) navTab.classList.add('active');
+            
+            var tabMap = ['dashboard', 'materials', 'labor', 'payments', 'quality', 'import', 'tabs'];
+            var idx = tabMap.indexOf(tab);
+            if (idx !== -1 && bottomItems[idx]) bottomItems[idx].classList.add('active');
+
+            var contents = document.querySelectorAll('.tab-content');
+            for (var k = 0; k < contents.length; k++) contents[k].classList.remove('active');
+            var target = document.getElementById('tab-' + tab);
+            if (target) {
+                target.classList.add('active');
+                if (tab.startsWith('custom_')) renderCustomTabItems(tab);
+            }
+            if (tab === 'dashboard') updateDashboard();
+            if (tab === 'import') setDefaultDates();
+        }
+
+        function updateBadgeCounts() {
+            document.getElementById('materialCount').textContent = state.materials.length;
+            document.getElementById('laborCount').textContent = state.labor.length;
+            document.getElementById('paymentCount').textContent = state.payments.length;
+            document.getElementById('qualityCount').textContent = state.quality.length;
+            for (var i = 0; i < state.customTabs.length; i++) {
+                var tab = state.customTabs[i];
+                var badge = document.querySelector('.nav-tab[data-tab="' + tab.id + '"] .badge-tab');
+                if (badge) badge.textContent = tab.items.length;
+            }
+        }
+
+        function updateMaterialDatalist() {
+            var datalist = document.getElementById('materialDatalist');
+            var html = '';
+            for (var i = 0; i < state.materialNames.length; i++) {
+                html += '<option value="' + state.materialNames[i] + '">';
+            }
+            datalist.innerHTML = html;
+        }
+
+        var toastTimeout;
+        function showToast(message, type) {
+            type = type || 'info';
+            var toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            clearTimeout(toastTimeout);
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            toastTimeout = setTimeout(function() { toast.classList.remove('show'); }, 3000);
+        }
+
+        // ============================================================
+        // PROJECT SETUP & INIT
+        // ============================================================
+        function startProject() {
+            var name = document.getElementById('projectName').value.trim();
+            var address = document.getElementById('projectAddress').value.trim();
+            var desc = document.getElementById('projectDesc').value.trim();
+            var currency = document.getElementById('defaultCurrency').value;
+
+            if (!name || !address || !desc) {
+                showToast('Please fill in all project details', 'error');
+                return;
+            }
+
+            state.project = { name: name, address: address, description: desc, currency: currency, createdAt: new Date().toISOString() };
+            state.materials = [];
+            state.labor = [];
+            state.payments = [];
+            state.quality = [];
+            state.customTabs = [];
+            currentCurrency = currency;
+
+            var today = new Date().toISOString().split('T')[0];
+            var defaults = [
+                { name: 'Bricks', qty: 5000, unit: 'units', date: today, cost: 2500, category: 'Civil', note: '' },
+                { name: 'Cement', qty: 200, unit: 'bags', date: today, cost: 3200, category: 'Civil', note: '' },
+                { name: 'Steel Rods', qty: 1500, unit: 'kg', date: today, cost: 4500, category: 'Civil', note: '' },
+                { name: 'Sand', qty: 100, unit: 'cu.ft', date: today, cost: 1250, category: 'Civil', note: '' },
+                { name: 'Aggregate', qty: 80, unit: 'cu.ft', date: today, cost: 1000, category: 'Civil', note: '' }
+            ];
+            for (var d = 0; d < defaults.length; d++) {
+                state.materials.push({ id: generateId(), name: defaults[d].name, qty: defaults[d].qty, unit: defaults[d].unit, date: defaults[d].date, cost: defaults[d].cost, category: defaults[d].category, note: defaults[d].note, file: null, fileName: '' });
+            }
+
+            saveState();
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+            document.getElementById('globalCurrency').value = currency;
+            renderAll();
+            renderTabManagement();
+            setupLaborButton();
+            showToast('🚀 Project started!', 'success');
+        }
+
+        function init() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    var parsed = JSON.parse(saved);
+                    if (parsed.project && parsed.project.name) {
+                        state = parsed;
+                        currentCurrency = state.project.currency || '$';
+                        document.getElementById('setupScreen').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'flex';
+                        document.getElementById('globalCurrency').value = currentCurrency;
+                        renderAll();
+                        renderTabManagement();
+                        setupLaborButton();
+                        return;
+                    }
+                } catch (e) { console.error('Load error:', e); }
+            }
+            document.getElementById('setupScreen').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            setDefaultDates();
+        }
+
+        function updateGlobalCurrency() {
+            var curr = document.getElementById('globalCurrency').value;
+            currentCurrency = curr;
+            state.project.currency = curr;
+            saveState();
+            renderAll();
+            showToast('💰 Currency updated to ' + curr, 'info');
+        }
+
+        function toggleEditProject() {
+            var card = document.getElementById('projectEditCard');
+            if (card.style.display === 'none') {
+                document.getElementById('editProjectName').value = state.project.name;
+                document.getElementById('editProjectAddress').value = state.project.address;
+                document.getElementById('editProjectDesc').value = state.project.description;
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        }
+
+        function saveProjectEdit() {
+            state.project.name = document.getElementById('editProjectName').value.trim() || state.project.name;
+            state.project.address = document.getElementById('editProjectAddress').value.trim() || state.project.address;
+            state.project.description = document.getElementById('editProjectDesc').value.trim() || state.project.description;
+            saveState();
+            renderAll();
+            document.getElementById('projectEditCard').style.display = 'none';
+            showToast('✅ Project details updated', 'success');
+        }
+
+        // ============================================================
+        // PRINT PREVIEW - FIXED
+        // ============================================================
+        function showPrintPreview() {
+            var overlay = document.getElementById('printPreview');
+            var body = document.getElementById('printPreviewBody');
+            
+            var printHTML = generateFullPrintHTML();
+            body.innerHTML = printHTML;
+            overlay.classList.add('show');
+        }
+
+        function closePrintPreview() {
+            document.getElementById('printPreview').classList.remove('show');
+        }
+
+        function printFromPreview() {
+            var printWindow = window.open('', '_blank', 'width=800,height=600');
+            if (!printWindow) {
+                showToast('❌ Please allow popups for printing', 'error');
+                return;
+            }
+            var content = document.getElementById('printPreviewBody').innerHTML;
+            printWindow.document.write('<html><head><title>Print Report</title>');
+            printWindow.document.write('<style>');
+            printWindow.document.write('body { font-family: Arial, sans-serif; padding: 20px; }');
+            printWindow.document.write('.print-page { max-width: 800px; margin: 0 auto; padding: 20px; background: white; }');
+            printWindow.document.write('.print-page h1 { text-align: center; color: #1a365d; font-size: 28px; }');
+            printWindow.document.write('.print-page h2 { text-align: center; font-size: 18px; color: #2d3748; }');
+            printWindow.document.write('.print-page .sub-info { text-align: center; font-size: 12px; color: #718096; }');
+            printWindow.document.write('.print-page .summary-box { background: #f7fafc; border: 2px solid #cbd5e0; border-radius: 8px; padding: 16px; margin: 12px 0; }');
+            printWindow.document.write('.print-page .summary-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #edf2f7; }');
+            printWindow.document.write('.print-page .summary-row:last-child { border-bottom: none; }');
+            printWindow.document.write('.print-page .summary-row .label { font-weight: 600; color: #4a5568; }');
+            printWindow.document.write('.print-page .summary-row .value { font-weight: 700; }');
+            printWindow.document.write('.print-page .summary-row .value.green { color: #38a169; }');
+            printWindow.document.write('.print-page .summary-row .value.red { color: #e53e3e; }');
+            printWindow.document.write('.print-page .section-title { color: #1a365d; font-size: 16px; margin: 12px 0 6px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; }');
+            printWindow.document.write('.print-page table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 6px 0 12px; }');
+            printWindow.document.write('.print-page table th { background: #edf2f7; padding: 4px 6px; border: 1px solid #e2e8f0; text-align: left; font-weight: 700; }');
+            printWindow.document.write('.print-page table td { padding: 3px 6px; border: 1px solid #e2e8f0; }');
+            printWindow.document.write('.print-page table tr:nth-child(even) { background: #f7fafc; }');
+            printWindow.document.write('.print-page .footer-text { text-align: center; font-size: 9px; color: #a0aec0; margin-top: 16px; padding-top: 8px; border-top: 1px solid #e2e8f0; }');
+            printWindow.document.write('.print-page .quality-photo { max-width: 100px; max-height: 80px; border-radius: 4px; border: 1px solid #e2e8f0; }');
+            printWindow.document.write('@media print { .no-print { display: none; } }');
+            printWindow.document.write('</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<button onclick="window.print()" style="padding:8px 16px;margin-bottom:16px;cursor:pointer;background:#1a365d;color:white;border:none;border-radius:4px;font-size:14px;">🖨️ Print</button>');
+            printWindow.document.write(content);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+        }
+
+        function generateFullPrintHTML() {
+            var symbol = getCurrency();
+            var totalCost = 0;
+            for (var i = 0; i < state.materials.length; i++) totalCost += state.materials[i].cost || 0;
+            for (var j = 0; j < state.labor.length; j++) totalCost += state.labor[j].pay || 0;
+            for (var ct = 0; ct < state.customTabs.length; ct++) {
+                var tab = state.customTabs[ct];
+                for (var ci = 0; ci < tab.items.length; ci++) {
+                    totalCost += tab.items[ci].cost || 0;
+                }
+            }
+            var totalPaid = 0;
+            for (var k = 0; k < state.payments.length; k++) totalPaid += state.payments[k].amount || 0;
+            var totalEntries = state.materials.length + state.labor.length + state.payments.length + state.quality.length;
+            for (var ce = 0; ce < state.customTabs.length; ce++) totalEntries += state.customTabs[ce].items.length;
+            
+            var html = '';
+            
+            // Page 1: Title + Summary + Dashboard
+            html += '<div class="print-page">';
+            html += '<h1>Building Cost Report</h1>';
+            html += '<h2>' + state.project.name + '</h2>';
+            html += '<p class="sub-info">Address: ' + state.project.address + '</p>';
+            if (state.project.description) {
+                html += '<p class="sub-info">Description: ' + state.project.description + '</p>';
+            }
+            html += '<p class="sub-info">Date: ' + new Date().toISOString().split('T')[0] + ' | Currency: ' + symbol + '</p>';
+            
+            // Summary
+            html += '<div class="summary-box">';
+            html += '<div class="summary-row"><span class="label">Total Cost</span><span class="value">' + formatCurrency(totalCost) + '</span></div>';
+            html += '<div class="summary-row"><span class="label">Total Paid</span><span class="value green">' + formatCurrency(totalPaid) + '</span></div>';
+            html += '<div class="summary-row"><span class="label">Due Amount</span><span class="value red">' + formatCurrency(Math.max(0, totalCost - totalPaid)) + '</span></div>';
+            html += '<div class="summary-row"><span class="label">Total Entries</span><span class="value">' + totalEntries + '</span></div>';
+            html += '</div>';
+            
+            // Dashboard Quick Overview
+            var matTotal2 = 0, labTotal2 = 0, payTotal2 = 0;
+            for (var mi2 = 0; mi2 < state.materials.length; mi2++) matTotal2 += state.materials[mi2].cost || 0;
+            for (var li3 = 0; li3 < state.labor.length; li3++) labTotal2 += state.labor[li3].pay || 0;
+            for (var pi3 = 0; pi3 < state.payments.length; pi3++) payTotal2 += state.payments[pi3].amount || 0;
+            var totalCost2 = matTotal2 + labTotal2;
+            var dueAmount2 = totalCost2 - payTotal2;
+            
+            html += '<h3 class="section-title">📊 Dashboard Overview</h3>';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin:6px 0 12px;">';
+            html += '<div style="background:#ebf8ff;padding:6px;border-radius:4px;text-align:center;border:1px solid #bee3f8;"><div style="font-weight:700;color:#2b6cb0;font-size:16px;">' + formatCurrency(totalCost2) + '</div><div style="color:#4a5568;font-size:9px;font-weight:600;">TOTAL COST</div></div>';
+            html += '<div style="background:#f0fff4;padding:6px;border-radius:4px;text-align:center;border:1px solid #c6f6d5;"><div style="font-weight:700;color:#38a169;font-size:16px;">' + formatCurrency(payTotal2) + '</div><div style="color:#4a5568;font-size:9px;font-weight:600;">PAID</div></div>';
+            html += '<div style="background:#fff5f5;padding:6px;border-radius:4px;text-align:center;border:1px solid #fed7d7;"><div style="font-weight:700;color:#e53e3e;font-size:16px;">' + formatCurrency(Math.max(0, dueAmount2)) + '</div><div style="color:#4a5568;font-size:9px;font-weight:600;">DUE</div></div>';
+            html += '<div style="background:#f7fafc;padding:6px;border-radius:4px;text-align:center;border:1px solid #e2e8f0;"><div style="font-weight:700;color:#2b6cb0;font-size:16px;">' + totalEntries + '</div><div style="color:#4a5568;font-size:9px;font-weight:600;">ENTRIES</div></div>';
+            html += '</div>';
+            
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:10px;">';
+            html += '<div style="background:#f7fafc;padding:4px 6px;border-radius:4px;border:1px solid #e2e8f0;font-size:10px;"><span style="color:#4a5568;font-weight:600;">📦 Materials</span><br><span style="font-weight:700;color:#2b6cb0;">' + state.materials.length + '</span></div>';
+            html += '<div style="background:#f7fafc;padding:4px 6px;border-radius:4px;border:1px solid #e2e8f0;font-size:10px;"><span style="color:#4a5568;font-weight:600;">👷 Labor</span><br><span style="font-weight:700;color:#2b6cb0;">' + state.labor.length + '</span></div>';
+            html += '<div style="background:#f7fafc;padding:4px 6px;border-radius:4px;border:1px solid #e2e8f0;font-size:10px;"><span style="color:#4a5568;font-weight:600;">💰 Payments</span><br><span style="font-weight:700;color:#2b6cb0;">' + state.payments.length + '</span></div>';
+            html += '<div style="background:#f7fafc;padding:4px 6px;border-radius:4px;border:1px solid #e2e8f0;font-size:10px;"><span style="color:#4a5568;font-weight:600;">✅ Quality</span><br><span style="font-weight:700;color:#2b6cb0;">' + state.quality.length + '</span></div>';
+            html += '</div>';
+            
+            var totalPct = matTotal2 + labTotal2 || 1;
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">';
+            html += '<div style="background:#ebf8ff;padding:4px;border-radius:4px;text-align:center;border:1px solid #bee3f8;"><span style="font-weight:700;color:#2b6cb0;font-size:14px;">' + Math.round((matTotal2 / totalPct) * 100) + '%</span><br><span style="color:#4a5568;font-size:8px;font-weight:600;">Materials</span></div>';
+            html += '<div style="background:#f0fff4;padding:4px;border-radius:4px;text-align:center;border:1px solid #c6f6d5;"><span style="font-weight:700;color:#38a169;font-size:14px;">' + Math.round((labTotal2 / totalPct) * 100) + '%</span><br><span style="color:#4a5568;font-size:8px;font-weight:600;">Labor</span></div>';
+            html += '<div style="background:#fffff0;padding:4px;border-radius:4px;text-align:center;border:1px solid #fefcbf;"><span style="font-weight:700;color:#d69e2e;font-size:14px;">' + Math.round(((totalCost2 - matTotal2 - labTotal2) / totalPct) * 100) + '%</span><br><span style="color:#4a5568;font-size:8px;font-weight:600;">Other</span></div>';
+            html += '</div>';
+            
+            html += '<p class="footer-text">Page 1</p>';
+            html += '</div>';
+            
+            // Materials Page
+            if (state.materials.length > 0) {
+                html += '<div class="print-page">';
+                html += '<h2 class="section-title">📦 Materials</h2>';
+                html += '<table><thead><tr><th>Name</th><th>Qty</th><th>Unit</th><th>Date</th><th>Cost</th></tr></thead><tbody>';
+                for (var mi = 0; mi < state.materials.length; mi++) {
+                    var m = state.materials[mi];
+                    html += '<tr><td>' + m.name + '</td><td>' + m.qty + '</td><td>' + m.unit + '</td><td>' + m.date + '</td><td style="text-align:right;">' + formatCurrency(m.cost) + '</td></tr>';
+                }
+                html += '</tbody></table>';
+                html += '<p class="footer-text">Page 2</p>';
+                html += '</div>';
+            }
+            
+            // Labor Page
+            if (state.labor.length > 0) {
+                html += '<div class="print-page">';
+                html += '<h2 class="section-title">👷 Labor</h2>';
+                html += '<table><thead><tr><th>Contractor</th><th>Workers</th><th>Date</th><th>Pay</th></tr></thead><tbody>';
+                for (var li = 0; li < state.labor.length; li++) {
+                    var l = state.labor[li];
+                    html += '<tr><td>' + l.contractor + '</td><td>' + l.count + '</td><td>' + l.date + '</td><td style="text-align:right;">' + formatCurrency(l.pay) + '</td></tr>';
+                }
+                html += '</tbody></table>';
+                html += '<p class="footer-text">Page 3</p>';
+                html += '</div>';
+            }
+            
+            // Payments Page
+            if (state.payments.length > 0) {
+                html += '<div class="print-page">';
+                html += '<h2 class="section-title">💰 Payments</h2>';
+                html += '<table><thead><tr><th>Contractor</th><th>Date</th><th>Type</th><th>Amount</th></tr></thead><tbody>';
+                for (var pi = 0; pi < state.payments.length; pi++) {
+                    var p = state.payments[pi];
+                    html += '<tr><td>' + p.contractor + '</td><td>' + p.date + '</td><td>' + (p.type || 'Regular') + '</td><td style="text-align:right;">' + formatCurrency(p.amount) + '</td></tr>';
+                }
+                html += '</tbody></table>';
+                html += '<p class="footer-text">Page 4</p>';
+                html += '</div>';
+            }
+            
+            // Quality Page
+            if (state.quality.length > 0) {
+                html += '<div class="print-page">';
+                html += '<h2 class="section-title">✅ Quality Checks</h2>';
+                for (var qi = 0; qi < state.quality.length; qi++) {
+                    var q = state.quality[qi];
+                    html += '<div style="margin-bottom:12px;padding:8px;border:1px solid #e2e8f0;border-radius:4px;">';
+                    html += '<div><strong>Item:</strong> ' + q.item + '</div>';
+                    html += '<div><strong>Date:</strong> ' + q.date + ' | <strong>Status:</strong> ' + (q.status || 'Pending') + ' | <strong>Inspector:</strong> ' + q.inspector + '</div>';
+                    if (q.note) html += '<div><strong>Note:</strong> ' + q.note + '</div>';
+                    if (q.photo && q.photo.startsWith('data:image')) {
+                        html += '<div><img src="' + q.photo + '" class="quality-photo" alt="Quality photo"></div>';
+                    }
+                    html += '</div>';
+                }
+                html += '<p class="footer-text">Page 5</p>';
+                html += '</div>';
+            }
+            
+            // Custom Tabs
+            for (var ct2 = 0; ct2 < state.customTabs.length; ct2++) {
+                var tab = state.customTabs[ct2];
+                if (tab.items.length > 0) {
+                    html += '<div class="print-page">';
+                    html += '<h2 class="section-title">📑 ' + tab.name + '</h2>';
+                    html += '<table><thead><tr><th>Name</th><th>Qty</th><th>Unit</th><th>Date</th><th>Cost</th></tr></thead><tbody>';
+                    for (var ti = 0; ti < tab.items.length; ti++) {
+                        var item = tab.items[ti];
+                        html += '<tr><td>' + item.name + '</td><td>' + item.qty + '</td><td>' + item.unit + '</td><td>' + item.date + '</td><td style="text-align:right;">' + formatCurrency(item.cost) + '</td></tr>';
+                    }
+                    html += '</tbody></table>';
+                    html += '<p class="footer-text">Page ' + (6 + ct2) + '</p>';
+                    html += '</div>';
+                }
+            }
+            
+            return html;
+        }
+
+        // ============================================================
+        // PDF EXPORT - WITH QUALITY IMAGES AND FILE ATTACHMENTS
+        // ============================================================
+        function exportPDF() {
+            showToast('📄 Generating comprehensive PDF report...', 'info');
+            
+            try {
+                var jsPDF = null;
+                if (typeof window.jspdf !== 'undefined') {
+                    jsPDF = window.jspdf.jsPDF || window.jspdf;
+                } else if (typeof window.jsPDF !== 'undefined') {
+                    jsPDF = window.jsPDF;
+                } else if (typeof jspdf !== 'undefined' && jspdf.jsPDF) {
+                    jsPDF = jspdf.jsPDF;
+                }
+                
+                if (!jsPDF) {
+                    var script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.onload = function() {
+                        if (typeof window.jspdf !== 'undefined') {
+                            jsPDF = window.jspdf.jsPDF || window.jspdf;
+                            generateFullReport(jsPDF);
+                        } else {
+                            showToast('❌ PDF library not loaded. Please try refreshing.', 'error');
+                        }
+                    };
+                    script.onerror = function() {
+                        showToast('❌ Failed to load PDF library. Please check your internet connection.', 'error');
+                    };
+                    document.head.appendChild(script);
+                    return;
+                }
+                
+                generateFullReport(jsPDF);
+                
+            } catch (err) {
+                console.error('PDF export error:', err);
+                showToast('❌ Error generating PDF. Please try again.', 'error');
+            }
+        }
+
+        function generateFullReport(jsPDF) {
+            var pdf = new jsPDF('p', 'mm', 'a4');
+            var pageWidth = 210;
+            var pageHeight = 297;
+            var margin = 20;
+            var y = margin;
+            var today = new Date().toISOString().split('T')[0];
+            
+            // Title Page
+            pdf.setFontSize(32);
+            pdf.setTextColor(26, 54, 93);
+            pdf.text('Building Cost Report', pageWidth/2, 60, { align: 'center' });
+            
+            pdf.setFontSize(18);
+            pdf.setTextColor(50, 50, 50);
+            pdf.text(state.project.name || 'Untitled Project', pageWidth/2, 80, { align: 'center' });
+            
+            pdf.setFontSize(12);
+            pdf.setTextColor(80, 80, 80);
+            pdf.text('Address: ' + state.project.address, pageWidth/2, 100, { align: 'center' });
+            if (state.project.description) {
+                pdf.text('Description: ' + state.project.description, pageWidth/2, 110, { align: 'center' });
+                var descY = 120;
+            } else {
+                var descY = 110;
+            }
+            pdf.text('Report Date: ' + today, pageWidth/2, descY + 10, { align: 'center' });
+            pdf.text('Currency: ' + getCurrency(), pageWidth/2, descY + 20, { align: 'center' });
+            
+            var totalCost = 0;
+            for (var i = 0; i < state.materials.length; i++) totalCost += state.materials[i].cost || 0;
+            for (var j = 0; j < state.labor.length; j++) totalCost += state.labor[j].pay || 0;
+            for (var ct = 0; ct < state.customTabs.length; ct++) {
+                var tab = state.customTabs[ct];
+                for (var ci = 0; ci < tab.items.length; ci++) {
+                    totalCost += tab.items[ci].cost || 0;
+                }
+            }
+            var totalPaid = 0;
+            for (var k = 0; k < state.payments.length; k++) totalPaid += state.payments[k].amount || 0;
+            var totalEntries = state.materials.length + state.labor.length + state.payments.length + state.quality.length;
+            for (var ce = 0; ce < state.customTabs.length; ce++) totalEntries += state.customTabs[ce].items.length;
+            
+            var summaryY = descY + 35;
+            pdf.setDrawColor(180, 180, 200);
+            pdf.setFillColor(245, 247, 250);
+            pdf.rect(margin + 15, summaryY, pageWidth - 2 * margin - 30, 85, 'FD');
+            
+            var sy = summaryY + 15;
+            pdf.setFontSize(16);
+            pdf.setTextColor(26, 54, 93);
+            pdf.text('Project Summary', pageWidth/2, sy, { align: 'center' });
+            sy += 14;
+            
+            pdf.setFontSize(12);
+            pdf.setTextColor(40, 40, 50);
+            var labels = [
+                ['Total Cost', formatCurrency(totalCost)],
+                ['Total Paid', formatCurrency(totalPaid)],
+                ['Due Amount', formatCurrency(Math.max(0, totalCost - totalPaid))],
+                ['Total Entries', String(totalEntries)]
+            ];
+            for (var li = 0; li < labels.length; li++) {
+                var x1 = margin + 35;
+                var x2 = pageWidth - margin - 35;
+                pdf.text(labels[li][0], x1, sy);
+                pdf.text(labels[li][1], x2, sy, { align: 'right' });
+                sy += 12;
+            }
+            
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text('Generated by Building Cost Manager Pro', pageWidth/2, pageHeight - 15, { align: 'center' });
+            
+            // Materials Section
+            if (state.materials.length > 0) {
+                pdf.addPage();
+                y = margin + 10;
+                pdf.setFontSize(20);
+                pdf.setTextColor(26, 54, 93);
+                pdf.text('Materials Report', margin, y);
+                y += 10;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 8;
+                
+                var matTotal = state.materials.reduce(function(s, m) { return s + (m.cost || 0); }, 0);
+                pdf.setFontSize(11);
+                pdf.setTextColor(80, 80, 80);
+                pdf.text('Total Materials: ' + state.materials.length + ' items - ' + formatCurrency(matTotal), margin, y);
+                y += 8;
+                
+                var colWidthsM = [50, 25, 25, 30, 30, 30];
+                var headersM = ['Name', 'Qty', 'Unit', 'Date', 'Cost', 'Category'];
+                var xM = margin;
+                pdf.setFontSize(9);
+                pdf.setTextColor(80, 80, 80);
+                pdf.setFillColor(235, 237, 240);
+                for (var hm = 0; hm < headersM.length; hm++) {
+                    pdf.rect(xM, y - 4, colWidthsM[hm], 8, 'F');
+                    pdf.text(headersM[hm], xM + 2, y);
+                    xM += colWidthsM[hm];
+                }
+                y += 4;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 4;
+                
+                pdf.setFontSize(8);
+                pdf.setTextColor(40, 40, 40);
+                for (var mi = 0; mi < state.materials.length; mi++) {
+                    if (y > pageHeight - 20) {
+                        pdf.addPage();
+                        y = margin + 20;
+                    }
+                    var m = state.materials[mi];
+                    xM = margin;
+                    pdf.text(m.name.substring(0, 18), xM, y);
+                    xM += colWidthsM[0];
+                    pdf.text(String(m.qty), xM, y);
+                    xM += colWidthsM[1];
+                    pdf.text(m.unit.substring(0, 10), xM, y);
+                    xM += colWidthsM[2];
+                    pdf.text(m.date, xM, y);
+                    xM += colWidthsM[3];
+                    pdf.text(formatCurrency(m.cost), xM, y);
+                    xM += colWidthsM[4];
+                    pdf.text((m.category || 'Other').substring(0, 12), xM, y);
+                    y += 6;
+                }
+            }
+            
+            // Labor Section
+            if (state.labor.length > 0) {
+                pdf.addPage();
+                y = margin + 10;
+                pdf.setFontSize(20);
+                pdf.setTextColor(26, 54, 93);
+                pdf.text('Labor Report', margin, y);
+                y += 10;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 8;
+                
+                var labTotal = state.labor.reduce(function(s, l) { return s + (l.pay || 0); }, 0);
+                pdf.setFontSize(11);
+                pdf.setTextColor(80, 80, 80);
+                pdf.text('Total Labor: ' + state.labor.length + ' records - ' + formatCurrency(labTotal), margin, y);
+                y += 8;
+                
+                var colWidthsL = [55, 25, 30, 25, 30];
+                var headersL = ['Contractor', 'Workers', 'Date', 'Basis', 'Pay'];
+                var xL = margin;
+                pdf.setFontSize(9);
+                pdf.setTextColor(80, 80, 80);
+                pdf.setFillColor(235, 237, 240);
+                for (var hl = 0; hl < headersL.length; hl++) {
+                    pdf.rect(xL, y - 4, colWidthsL[hl], 8, 'F');
+                    pdf.text(headersL[hl], xL + 2, y);
+                    xL += colWidthsL[hl];
+                }
+                y += 4;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 4;
+                
+                pdf.setFontSize(8);
+                pdf.setTextColor(40, 40, 40);
+                for (var li2 = 0; li2 < state.labor.length; li2++) {
+                    if (y > pageHeight - 20) {
+                        pdf.addPage();
+                        y = margin + 20;
+                    }
+                    var l = state.labor[li2];
+                    xL = margin;
+                    pdf.text(l.contractor.substring(0, 20), xL, y);
+                    xL += colWidthsL[0];
+                    pdf.text(String(l.count), xL, y);
+                    xL += colWidthsL[1];
+                    pdf.text(l.date, xL, y);
+                    xL += colWidthsL[2];
+                    pdf.text((l.basis || 'daily').substring(0, 8), xL, y);
+                    xL += colWidthsL[3];
+                    pdf.text(formatCurrency(l.pay), xL, y);
+                    y += 6;
+                }
+            }
+            
+            // Payments Section
+            if (state.payments.length > 0) {
+                pdf.addPage();
+                y = margin + 10;
+                pdf.setFontSize(20);
+                pdf.setTextColor(26, 54, 93);
+                pdf.text('Payments Report', margin, y);
+                y += 10;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 8;
+                
+                var payTotal = state.payments.reduce(function(s, p) { return s + (p.amount || 0); }, 0);
+                pdf.setFontSize(11);
+                pdf.setTextColor(80, 80, 80);
+                pdf.text('Total Payments: ' + state.payments.length + ' records - ' + formatCurrency(payTotal), margin, y);
+                y += 8;
+                
+                var colWidthsP = [55, 30, 30, 35];
+                var headersP = ['Contractor', 'Date', 'Type', 'Amount'];
+                var xP = margin;
+                pdf.setFontSize(9);
+                pdf.setTextColor(80, 80, 80);
+                pdf.setFillColor(235, 237, 240);
+                for (var hp = 0; hp < headersP.length; hp++) {
+                    pdf.rect(xP, y - 4, colWidthsP[hp], 8, 'F');
+                    pdf.text(headersP[hp], xP + 2, y);
+                    xP += colWidthsP[hp];
+                }
+                y += 4;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 4;
+                
+                pdf.setFontSize(8);
+                pdf.setTextColor(40, 40, 40);
+                for (var pi2 = 0; pi2 < state.payments.length; pi2++) {
+                    if (y > pageHeight - 20) {
+                        pdf.addPage();
+                        y = margin + 20;
+                    }
+                    var p = state.payments[pi2];
+                    xP = margin;
+                    pdf.text(p.contractor.substring(0, 20), xP, y);
+                    xP += colWidthsP[0];
+                    pdf.text(p.date, xP, y);
+                    xP += colWidthsP[1];
+                    pdf.text((p.type || 'Regular').substring(0, 10), xP, y);
+                    xP += colWidthsP[2];
+                    pdf.text(formatCurrency(p.amount), xP, y);
+                    y += 6;
+                }
+            }
+            
+            // Quality Section - WITH PHOTOS
+            if (state.quality.length > 0) {
+                pdf.addPage();
+                y = margin + 10;
+                pdf.setFontSize(20);
+                pdf.setTextColor(26, 54, 93);
+                pdf.text('Quality Checks Report', margin, y);
+                y += 10;
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 8;
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(80, 80, 80);
+                pdf.text('Total Quality Checks: ' + state.quality.length + ' records', margin, y);
+                y += 8;
+                
+                for (var qi2 = 0; qi2 < state.quality.length; qi2++) {
+                    var q = state.quality[qi2];
+                    
+                    if (y > pageHeight - 50) {
+                        pdf.addPage();
+                        y = margin + 20;
+                    }
+                    
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(40, 40, 40);
+                    pdf.text('Item: ' + q.item, margin, y);
+                    y += 6;
+                    pdf.text('Date: ' + q.date + ' | Status: ' + (q.status || 'Pending') + ' | Inspector: ' + q.inspector, margin, y);
+                    y += 6;
+                    if (q.note) {
+                        pdf.text('Note: ' + q.note, margin, y);
+                        y += 6;
+                    }
+                    
+                    if (q.photo && q.photo.startsWith('data:image')) {
+                        try {
+                            var imgWidth = 60;
+                            var imgHeight = 45;
+                            pdf.addImage(q.photo, 'JPEG', margin, y, imgWidth, imgHeight);
+                            y += imgHeight + 6;
+                        } catch(e) {
+                            pdf.text('📸 Photo attached (view in app)', margin, y);
+                            y += 6;
+                        }
+                    } else {
+                        pdf.text('📸 No photo', margin, y);
+                        y += 6;
+                    }
+                    
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    y += 6;
+                }
+            }
+            
+            // Custom Tabs
+            for (var ct2 = 0; ct2 < state.customTabs.length; ct2++) {
+                var tab = state.customTabs[ct2];
+                if (tab.items.length > 0) {
+                    pdf.addPage();
+                    y = margin + 10;
+                    pdf.setFontSize(20);
+                    pdf.setTextColor(26, 54, 93);
+                    pdf.text(tab.name + ' Report', margin, y);
+                    y += 10;
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    y += 8;
+                    
+                    var tabTotal = tab.items.reduce(function(s, it) { return s + (it.cost || 0); }, 0);
+                    pdf.setFontSize(11);
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text('Total ' + tab.name + ': ' + tab.items.length + ' items - ' + formatCurrency(tabTotal), margin, y);
+                    y += 8;
+                    
+                    var colWidthsC = [45, 25, 25, 30, 30];
+                    var headersC = ['Name', 'Qty', 'Unit', 'Date', 'Cost'];
+                    var xC = margin;
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.setFillColor(235, 237, 240);
+                    for (var hc = 0; hc < headersC.length; hc++) {
+                        pdf.rect(xC, y - 4, colWidthsC[hc], 8, 'F');
+                        pdf.text(headersC[hc], xC + 2, y);
+                        xC += colWidthsC[hc];
+                    }
+                    y += 4;
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    y += 4;
+                    
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(40, 40, 40);
+                    for (var ti2 = 0; ti2 < tab.items.length; ti2++) {
+                        if (y > pageHeight - 20) {
+                            pdf.addPage();
+                            y = margin + 20;
+                        }
+                        var item = tab.items[ti2];
+                        xC = margin;
+                        pdf.text(item.name.substring(0, 18), xC, y);
+                        xC += colWidthsC[0];
+                        pdf.text(String(item.qty), xC, y);
+                        xC += colWidthsC[1];
+                        pdf.text(item.unit.substring(0, 10), xC, y);
+                        xC += colWidthsC[2];
+                        pdf.text(item.date, xC, y);
+                        xC += colWidthsC[3];
+                        pdf.text(formatCurrency(item.cost), xC, y);
+                        y += 6;
+                    }
+                }
+            }
+            
+            // Finalize PDF
+            try {
+                var pageCount = pdf.internal.pages.length;
+                for (var p = 1; p < pageCount; p++) {
+                    pdf.setPage(p);
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text('Page ' + p + ' of ' + (pageCount - 1), pageWidth - 40, pageHeight - 10);
+                }
+                pdf.save('Building_Report_' + state.project.name.replace(/\s+/g, '_') + '_' + new Date().toISOString().split('T')[0] + '.pdf');
+                showToast('✅ Comprehensive PDF report exported!', 'success');
+            } catch (err) {
+                showToast('❌ Error saving PDF. Please try again.', 'error');
+            }
+        }
+
+        // ============================================================
+        // INIT ON LOAD
+        // ============================================================
+        window.onload = function() {
+            init();
+            setTimeout(setupLaborButton, 300);
+        };
+    </script>
+</body>
+</html>
