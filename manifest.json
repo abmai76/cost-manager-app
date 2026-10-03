@@ -1,6 +1,6 @@
 {
   "name": "Cost Manager Pro",
-  "short_name": "Cost Manager",
+  "short_name": "Cost Manager Pro",
   "description": "Track costs, budgets, invoices, and quality checks for any project. Works offline.",
   "start_url": "./index.html",
   "scope": "./",
