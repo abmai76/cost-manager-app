@@ -1,18 +1,28 @@
 {
-  "name": "Building Cost Manager Pro",
+  "name": "Cost Manager Pro",
   "short_name": "Cost Manager",
-  "description": "Complete cost tracking for construction projects",
-  "start_url": "/",
+  "description": "Track costs, budgets, invoices, and quality checks for any project. Works offline.",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#1a365d",
   "theme_color": "#1a365d",
-  "orientation": "portrait",
+  "orientation": "any",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "finance"],
   "icons": [
     {
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
